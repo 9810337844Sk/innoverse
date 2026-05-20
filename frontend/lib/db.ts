@@ -44,8 +44,15 @@ export async function getEvents(): Promise<StoredEvent[]> {
 }
 
 export async function getEventByCode(code: string): Promise<StoredEvent | null> {
-  const events = await getEvents();
-  return events.find(e => e.code.toUpperCase() === code.toUpperCase()) ?? null;
+  try {
+    // Use the public endpoint — no auth required (used by /find page for guests)
+    const r = await fetch(`/api/events/public/${encodeURIComponent(code.toUpperCase())}`);
+    if (!r.ok) return null;
+    const data = await r.json() as StoredEvent;
+    return data._id ? normalizeEvent(data) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function createEvent(event: StoredEvent): Promise<void> {
@@ -77,7 +84,9 @@ export async function deleteEvent(id: string): Promise<void> {
 // Photos are stored in Supabase and served via Cloudinary CDN URLs.
 
 export async function getPhotos(eventId: string): Promise<StoredPhoto[]> {
-  const r = await fetch(`/api/photos/${eventId}`);
+  // Use the public endpoint — no auth required.
+  // The /find page (guests) uses this. The dashboard uses the backend API directly.
+  const r = await fetch(`/api/photos/public/${eventId}`);
   const j = await r.json() as { photos: StoredPhoto[] };
   return j.photos || [];
 }

@@ -80,7 +80,7 @@ export default function Pricing() {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
   return (
-    <section id="pricing" className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden" ref={ref}>
+    <section id="pricing" className="py-20 lg:py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden" ref={ref}>
       <div
         className="absolute inset-0"
         style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 55%, #FFF5F8 100%)" }}
@@ -107,7 +107,7 @@ export default function Pricing() {
           >
             Pricing
           </span>
-          <h2 className="font-black text-4xl sm:text-5xl lg:text-6xl mt-4 mb-6 text-deep tracking-tight">
+          <h2 className="font-black text-3xl sm:text-5xl lg:text-6xl mt-4 mb-6 text-deep tracking-tight">
             Simple,{" "}
             <span
               style={{
@@ -125,16 +125,16 @@ export default function Pricing() {
         </motion.div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-8 items-center">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 items-center">
           {plans.map((p, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: i * 0.15 }}
-              className={`relative rounded-3xl p-7 transition-all duration-300 ${
+              className={`relative rounded-3xl p-6 sm:p-7 transition-all duration-300 ${
                 p.comingSoon ? "opacity-70" : "kinetic-card shine-card"
-              } ${p.highlight ? "scale-105" : ""}`}
+              } ${p.highlight ? "md:scale-105" : ""}`}
               style={{
                 background: p.highlight
                   ? `linear-gradient(135deg, ${p.accentBg}, #FFFFFF)`

@@ -19,7 +19,7 @@ function Card({ t }: { t: typeof testimonials[0] }) {
 
   return (
     <div
-      className="mx-3 w-80 flex-shrink-0 rounded-2xl p-6 transition-all duration-300 group kinetic-card shine-card bg-white shadow-card"
+      className="mx-2 sm:mx-3 w-64 sm:w-80 flex-shrink-0 rounded-2xl p-5 sm:p-6 transition-all duration-300 group kinetic-card shine-card bg-white shadow-card"
       style={{
         background: "rgba(255,255,255,0.03)",
         border: `1px solid ${t.accent}20`,
@@ -62,7 +62,7 @@ export default function Testimonials() {
   const row2 = [...testimonials.slice(4), ...testimonials.slice(4), ...testimonials.slice(4)];
 
   return (
-    <section className="relative overflow-hidden py-32" ref={ref}>
+    <section className="relative overflow-hidden py-20 lg:py-32" ref={ref}>
       <div
         className="absolute inset-0"
         style={{ background: "linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 50%, #FFF5F8 100%)" }}
@@ -84,7 +84,7 @@ export default function Testimonials() {
           >
             Testimonials
           </span>
-          <h2 className="mt-4 mb-6 font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight text-deep">
+          <h2 className="mt-4 mb-6 font-black text-3xl sm:text-5xl lg:text-6xl tracking-tight text-deep">
             Loved by{" "}
             <span
               style={{
@@ -114,11 +114,11 @@ export default function Testimonials() {
 
       {/* Edge fades */}
       <div
-        className="pointer-events-none absolute inset-y-0 left-0 w-32"
+        className="pointer-events-none absolute inset-y-0 left-0 w-12 sm:w-24 lg:w-32"
         style={{ background: "linear-gradient(90deg, #FAFBFC, transparent)" }}
       />
       <div
-        className="pointer-events-none absolute inset-y-0 right-0 w-32"
+        className="pointer-events-none absolute inset-y-0 right-0 w-12 sm:w-24 lg:w-32"
         style={{ background: "linear-gradient(270deg, #FAFBFC, transparent)" }}
       />
     </section>

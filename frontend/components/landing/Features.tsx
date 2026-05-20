@@ -21,7 +21,7 @@ export default function Features() {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.05 });
 
   return (
-    <section id="features" className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden" ref={ref}>
+    <section id="features" className="py-20 lg:py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden" ref={ref}>
       {/* Background */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)" }} />
       <div
@@ -58,7 +58,7 @@ export default function Features() {
           >
             Everything You Need
           </span>
-          <h2 className="font-black text-4xl sm:text-5xl lg:text-6xl mt-4 mb-6 tracking-tight text-deep">
+          <h2 className="font-black text-3xl sm:text-5xl lg:text-6xl mt-4 mb-6 tracking-tight text-deep">
             Packed with{" "}
             <span
               style={{
@@ -77,7 +77,7 @@ export default function Features() {
         </motion.div>
 
         {/* Feature grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-10">
           {features.map((f, i) => (
             <motion.div
               key={i}

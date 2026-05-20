@@ -109,26 +109,26 @@ export default function Hero() {
 
       <motion.div
         style={{ opacity }}
-        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12"
+        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12"
       >
-        <div className="grid lg:grid-cols-2 gap-12 xl:gap-20 items-center">
+        <div className="grid lg:grid-cols-2 gap-8 xl:gap-20 items-center">
 
           {/* ── Left copy ── */}
           <div className="flex flex-col items-start text-left">
 
             {/* Badge */}
-            <motion.div custom={0} variants={fadeLeft} initial="hidden" animate="show" className="mb-7">
+            <motion.div custom={0} variants={fadeLeft} initial="hidden" animate="show" className="mb-5 sm:mb-7">
               <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-deep shadow-sm"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold text-deep shadow-sm"
                 style={{
                   background: "rgba(168,85,247,0.08)",
                   border: "1px solid rgba(168,85,247,0.22)",
                 }}
               >
-                <Sparkles size={13} className="text-secondary" />
+                <Sparkles size={12} className="text-secondary flex-shrink-0" />
                 <span>AI-Powered Face Recognition for Events</span>
                 <span
-                  className="w-2 h-2 rounded-full animate-pulse"
+                  className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
                   style={{ background: "#2DD4BF", boxShadow: "0 0 8px #2DD4BF" }}
                 />
               </div>
@@ -137,7 +137,7 @@ export default function Hero() {
             {/* Headline */}
             <motion.h1
               custom={1} variants={fadeLeft} initial="hidden" animate="show"
-              className="font-black text-5xl sm:text-6xl xl:text-7xl leading-[1.08] mb-6 tracking-tight"
+              className="font-black text-4xl sm:text-5xl xl:text-7xl leading-[1.08] mb-5 sm:mb-6 tracking-tight"
             >
               <span className="block text-deep">Find Every Photo</span>
               <span
@@ -156,7 +156,7 @@ export default function Hero() {
             {/* Sub */}
             <motion.p
               custom={2} variants={fadeLeft} initial="hidden" animate="show"
-              className="text-slate-600 text-lg leading-relaxed mb-8 max-w-lg"
+              className="text-slate-600 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-lg"
             >
               Upload your selfie, enter your event code — our AI scans thousands of photos and finds
               every single one with your face in{" "}
@@ -166,25 +166,25 @@ export default function Hero() {
             {/* CTAs */}
             <motion.div
               custom={3} variants={fadeLeft} initial="hidden" animate="show"
-              className="flex flex-col sm:flex-row items-start gap-4 mb-10"
+              className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 mb-7 sm:mb-10 w-full sm:w-auto"
             >
-              <Link href="/find">
+              <Link href="/find" className="w-full sm:w-auto">
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  className="flex items-center gap-2 text-white font-bold px-8 py-4 rounded-2xl text-base shadow-pink"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-white font-bold px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base shadow-pink"
                   style={{ background: "linear-gradient(135deg, #FF2D78, #FF6B9D)" }}
                 >
-                  <ScanFace size={19} /> Find My Photos <ArrowRight size={17} />
+                  <ScanFace size={18} /> Find My Photos <ArrowRight size={16} />
                 </motion.button>
               </Link>
-              <Link href="/auth/register?role=photographer">
+              <Link href="/auth/register?role=photographer" className="w-full sm:w-auto">
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  className="flex items-center gap-2 font-semibold px-8 py-4 rounded-2xl text-base text-deep bg-white/90 border border-primary/15 shadow-card hover:border-primary/30 hover:bg-white transition-colors"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base text-deep bg-white/90 border border-primary/15 shadow-card hover:border-primary/30 hover:bg-white transition-colors"
                 >
-                  <Camera size={19} className="text-primary" /> I&apos;m a Photographer
+                  <Camera size={18} className="text-primary" /> I&apos;m a Photographer
                 </motion.button>
               </Link>
             </motion.div>
@@ -192,20 +192,20 @@ export default function Hero() {
             {/* Badges */}
             <motion.div
               custom={4} variants={fadeLeft} initial="hidden" animate="show"
-              className="flex flex-wrap gap-3 mb-10"
+              className="flex flex-wrap gap-2 mb-7 sm:mb-10"
             >
               {[
-                { icon: <Zap size={13} />,    text: "3s results",     color: "#FF6B61", bg: "rgba(255,107,97,0.1)",   border: "rgba(255,107,97,0.25)" },
-                { icon: <Shield size={13} />, text: "Privacy-first",  color: "#2DD4BF", bg: "rgba(45,212,191,0.08)",  border: "rgba(45,212,191,0.2)" },
-                { icon: <Star size={13} />,   text: "99.2% accuracy", color: "#A992FF", bg: "rgba(169,146,255,0.1)",  border: "rgba(169,146,255,0.25)" },
-                { icon: <CheckCircle size={13} />, text: "Group photos", color: "#2DD4BF", bg: "rgba(45,212,191,0.08)", border: "rgba(45,212,191,0.2)" },
+                { icon: <Zap size={12} />,    text: "3s results",     color: "#FF6B61", bg: "rgba(255,107,97,0.1)",   border: "rgba(255,107,97,0.25)" },
+                { icon: <Shield size={12} />, text: "Privacy-first",  color: "#2DD4BF", bg: "rgba(45,212,191,0.08)",  border: "rgba(45,212,191,0.2)" },
+                { icon: <Star size={12} />,   text: "99.2% accuracy", color: "#A992FF", bg: "rgba(169,146,255,0.1)",  border: "rgba(169,146,255,0.25)" },
+                { icon: <CheckCircle size={12} />, text: "Group photos", color: "#2DD4BF", bg: "rgba(45,212,191,0.08)", border: "rgba(45,212,191,0.2)" },
               ].map((b, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.7 + i * 0.08 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border text-xs font-medium"
                   style={{ color: b.color, background: b.bg, borderColor: b.border }}
                 >
                   {b.icon} {b.text}
@@ -216,7 +216,7 @@ export default function Hero() {
             {/* Stats */}
             <motion.div
               custom={5} variants={fadeLeft} initial="hidden" animate="show"
-              className="grid grid-cols-3 gap-4 w-full max-w-sm"
+              className="grid grid-cols-3 gap-3 w-full max-w-xs sm:max-w-sm"
             >
               {[
                 { value: "2.3s", label: "Avg search" },
@@ -233,7 +233,7 @@ export default function Hero() {
                   }}
                 >
                   <div
-                    className="font-black text-xl stat-number"
+                    className="font-black text-lg sm:text-xl stat-number"
                     style={{
                       background: "linear-gradient(135deg, #FF2D78, #A855F7)",
                       WebkitBackgroundClip: "text",
@@ -243,13 +243,13 @@ export default function Hero() {
                   >
                     {s.value}
                   </div>
-                  <div className="text-slate-500 text-xs mt-0.5 font-medium">{s.label}</div>
+                  <div className="text-slate-500 text-[10px] sm:text-xs mt-0.5 font-medium">{s.label}</div>
                 </div>
               ))}
             </motion.div>
           </div>
 
-          {/* ── Right collage ── */}
+          {/* ── Right collage — hidden on mobile, shown lg+ ── */}
           <div className="relative hidden lg:block">
             <div
               className="absolute inset-0 rounded-3xl blur-3xl scale-110 opacity-25"

@@ -228,21 +228,21 @@ export default function EventDetailPage() {
 
       {/* ── Stats bar ── */}
       {photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
-            { label: "Total Photos", value: photos.length,                accent: "#FF2D78", bg: "rgba(255,45,120,0.07)", border: "rgba(255,45,120,0.12)", icon: <Images size={15} /> },
-            { label: "Indexed",      value: indexedCount,                 accent: "#0D9488", bg: "rgba(13,148,136,0.07)", border: "rgba(13,148,136,0.12)", icon: <CheckCircle size={15} /> },
-            { label: "Pending",      value: photos.length - indexedCount, accent: "#F59E0B", bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.12)", icon: <Brain size={15} /> },
+            { label: "Total",   value: photos.length,                accent: "#FF2D78", bg: "rgba(255,45,120,0.07)", border: "rgba(255,45,120,0.12)", icon: <Images size={14} /> },
+            { label: "Indexed", value: indexedCount,                 accent: "#0D9488", bg: "rgba(13,148,136,0.07)", border: "rgba(13,148,136,0.12)", icon: <CheckCircle size={14} /> },
+            { label: "Pending", value: photos.length - indexedCount, accent: "#F59E0B", bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.12)", icon: <Brain size={14} /> },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl px-4 py-3.5 flex items-center gap-3 bg-white"
+            <div key={s.label} className="rounded-2xl px-3 sm:px-4 py-3 sm:py-3.5 flex items-center gap-2 sm:gap-3 bg-white"
               style={{ border: `1px solid ${s.border}`, boxShadow: `0 2px 12px ${s.bg}` }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: s.bg, border: `1px solid ${s.border}` }}>
                 <span style={{ color: s.accent }}>{s.icon}</span>
               </div>
               <div>
-                <div className="font-bold text-xl text-deep leading-none">{s.value}</div>
-                <div className="text-slate-400 text-xs mt-0.5">{s.label}</div>
+                <div className="font-bold text-lg sm:text-xl text-deep leading-none">{s.value}</div>
+                <div className="text-slate-400 text-[10px] sm:text-xs mt-0.5">{s.label}</div>
               </div>
             </div>
           ))}
@@ -397,7 +397,7 @@ export default function EventDetailPage() {
 
       {/* ── Photo grid ── */}
       {filtered.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
           <AnimatePresence>
             {filtered.map((photo, i) => (
               <motion.div key={photo._id}
@@ -405,42 +405,47 @@ export default function EventDetailPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.88 }}
                 transition={{ delay: Math.min(i * 0.015, 0.4), duration: 0.22 }}
-                className="relative group aspect-square rounded-2xl overflow-hidden"
+                className="relative group aspect-square rounded-xl sm:rounded-2xl overflow-hidden"
                 style={{ background: "#F1F5F9" }}
               >
                 <Image
                   src={photo.thumbnailUrl ?? photo.url} alt={photo.name || "Event photo"} fill unoptimized
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-all duration-200 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                {/* Actions — always visible on mobile, hover on desktop */}
+                <div className="absolute inset-0 bg-black/0 sm:group-hover:bg-black/35 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 sm:opacity-0 sm:group-hover:opacity-100">
+                  {/* On mobile: small persistent buttons at bottom */}
+                  <div className="absolute bottom-1 left-1 right-1 flex gap-1 sm:hidden">
+                    <button onClick={() => setLightbox(photo)}
+                      className="flex-1 h-7 bg-white/90 rounded-lg flex items-center justify-center">
+                      <ZoomIn size={12} style={{ color: "#1A0A12" }} />
+                    </button>
+                    <button onClick={() => deletePhoto(photo._id)}
+                      className="flex-1 h-7 bg-red-500 rounded-lg flex items-center justify-center">
+                      <Trash2 size={12} className="text-white" />
+                    </button>
+                  </div>
+                  {/* Desktop hover buttons */}
                   <button onClick={() => setLightbox(photo)}
-                    className="w-8 h-8 bg-white/90 rounded-xl flex items-center justify-center hover:bg-white transition-colors shadow-sm">
+                    className="hidden sm:flex w-8 h-8 bg-white/90 rounded-xl items-center justify-center hover:bg-white transition-colors shadow-sm">
                     <ZoomIn size={14} style={{ color: "#1A0A12" }} />
                   </button>
                   <button onClick={() => deletePhoto(photo._id)}
-                    className="w-8 h-8 bg-red-500 rounded-xl flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm">
+                    className="hidden sm:flex w-8 h-8 bg-red-500 rounded-xl items-center justify-center hover:bg-red-600 transition-colors shadow-sm">
                     <Trash2 size={14} className="text-white" />
                   </button>
                 </div>
                 {/* Indexed badge */}
                 {photo.indexed && (
-                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
+                  <div className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center shadow-sm"
                     style={{ background: "#0D9488" }}>
-                    <CheckCircle size={10} className="text-white" />
+                    <CheckCircle size={9} className="text-white" />
                   </div>
                 )}
                 {/* Face count */}
                 {photo.facesCount > 0 && (
-                  <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 text-xs bg-white/95 text-slate-700 px-1.5 py-0.5 rounded-lg shadow-sm">
-                    <Users size={10} /> {photo.facesCount}
-                  </div>
-                )}
-                {/* Tag */}
-                {photo.tags[0] && (
-                  <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-lg text-white"
-                    style={{ background: "rgba(255,45,120,0.8)" }}>
-                    <Tag size={10} /> {photo.tags[0]}
+                  <div className="absolute top-1 sm:top-1.5 left-1 sm:left-1.5 flex items-center gap-0.5 text-[10px] bg-white/95 text-slate-700 px-1 sm:px-1.5 py-0.5 rounded-md sm:rounded-lg shadow-sm">
+                    <Users size={9} /> {photo.facesCount}
                   </div>
                 )}
               </motion.div>

@@ -40,7 +40,7 @@ export default function HowItWorks() {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
   return (
-    <section id="how-it-works" className="relative overflow-hidden py-32 px-4 sm:px-6 lg:px-8" ref={ref}>
+    <section id="how-it-works" className="relative overflow-hidden py-20 lg:py-32 px-4 sm:px-6 lg:px-8" ref={ref}>
       {/* Background */}
       <div
         className="absolute inset-0"
@@ -74,7 +74,7 @@ export default function HowItWorks() {
           >
             Simple Process
           </span>
-          <h2 className="mt-4 mb-6 font-black text-4xl sm:text-5xl lg:text-6xl text-deep tracking-tight">
+          <h2 className="mt-4 mb-6 font-black text-3xl sm:text-5xl lg:text-6xl text-deep tracking-tight">
             Three Steps to{" "}
             <span
               style={{
@@ -93,7 +93,7 @@ export default function HowItWorks() {
         </motion.div>
 
         {/* Steps */}
-        <div className="relative grid gap-8 lg:grid-cols-3">
+        <div className="relative grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {/* Connector line */}
           <div className="absolute top-24 left-[calc(16.67%+2rem)] right-[calc(16.67%+2rem)] hidden h-px lg:block">
             <motion.div
