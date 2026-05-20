@@ -183,7 +183,7 @@ export default function PhotosPage() {
     if (!confirm(`Delete ${selected.size} photo(s)?`)) return;
     setDeleting(true);
     try {
-      for (const id of selected) {
+      for (const id of Array.from(selected)) {
         await fetch(`/api/photos/${selectedEvent._id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

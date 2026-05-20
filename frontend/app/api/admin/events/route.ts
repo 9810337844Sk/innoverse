@@ -12,7 +12,7 @@ export async function GET() {
     if (error) throw error;
 
     // fetch photographer names in one query
-    const photographerIds = [...new Set((events as DbEvent[]).map(e => e.photographer_id).filter(Boolean))];
+    const photographerIds = Array.from(new Set((events as DbEvent[]).map(e => e.photographer_id).filter(Boolean)));
     const { data: photographers } = photographerIds.length
       ? await supabase.from("users").select("id, name, email").in("id", photographerIds)
       : { data: [] };
