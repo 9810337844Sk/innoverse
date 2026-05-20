@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "e1775456914676",
+    "name": "Garima Weeding Phtots",
+    "date": "2000-09-03",
+    "code": "GARIMA601",
+    "photographerId": "u1",
+    "photoCount": 0,
+    "searchCount": 0,
+    "downloadCount": 0,
+    "createdAt": "2026-04-06T06:28:34.676Z"
+  },
+  {
+    "_id": "e1775453108503",
+    "name": "AB",
+    "date": "275760-05-05",
+    "code": "AB870",
+    "photographerId": "u1",
+    "photoCount": 0,
+    "searchCount": 0,
+    "downloadCount": 0,
+    "createdAt": "2026-04-06T05:25:08.503Z"
+  },
+  {
+    "_id": "e1775384400723",
+    "name": "Harhit Weeding",
+    "date": "2020-09-12",
+    "code": "HARHIT942",
+    "photographerId": "u1",
+    "photoCount": 0,
+    "searchCount": 0,
+    "downloadCount": 0,
+    "createdAt": "2026-04-05T10:20:00.723Z"
+  }
+]
