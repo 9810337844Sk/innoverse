@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+type LoginUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  plan: string;
+  banned: boolean;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
@@ -16,14 +25,16 @@ export async function POST(req: NextRequest) {
         p_password: password,
       });
 
-    if (error || !data) {
+    if (error) {
+      console.error("[login] password check error", error);
       return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
     }
 
-    const user = data as {
-      id: string; name: string; email: string;
-      role: string; plan: string; banned: boolean;
-    };
+    const user = Array.isArray(data) ? data[0] as LoginUser | undefined : data as LoginUser | null;
+
+    if (!user?.id) {
+      return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
+    }
 
     if (user.banned) {
       return NextResponse.json({ message: "Your account has been suspended" }, { status: 403 });
