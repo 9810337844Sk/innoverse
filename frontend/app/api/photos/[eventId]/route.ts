@@ -70,7 +70,7 @@ export async function GET(
   }
 }
 
-// POST /api/photos/[eventId]  body: { action: "delete"|"update", photoId, patch? }
+// POST /api/photos/[eventId]  body: { action: "delete"|"update"|"upsert", photoId, patch?, photo? }
 export async function POST(
   req: NextRequest,
   { params }: { params: { eventId: string } }
@@ -88,7 +88,71 @@ export async function POST(
       action: string;
       photoId: string;
       patch?: Record<string, unknown>;
+      photo?: {
+        url?: string;
+        thumbnailUrl?: string;
+        name?: string;
+        facesCount?: number;
+        tags?: string[];
+        indexed?: boolean;
+        savedAt?: string;
+      };
     };
+
+    if (body.action === "upsert" && body.photo?.url) {
+      const photo = body.photo;
+      const existing = await supabase
+        .from("photos")
+        .select("id")
+        .eq("event_id", params.eventId)
+        .eq("url", photo.url)
+        .maybeSingle();
+
+      if (existing.error) throw existing.error;
+
+      if (existing.data?.id) {
+        const { data, error } = await supabase
+          .from("photos")
+          .update({
+            thumbnail_url: photo.thumbnailUrl ?? photo.url,
+            name:          photo.name ?? "",
+            faces_count:   photo.facesCount ?? 0,
+            tags:          photo.tags ?? [],
+            indexed:       photo.indexed ?? false,
+            saved_at:      photo.savedAt ?? new Date().toISOString(),
+          })
+          .eq("id", existing.data.id)
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        return NextResponse.json({ photo: toStoredPhoto(data as DbPhoto) });
+      }
+
+      const { data, error } = await supabase
+        .from("photos")
+        .insert({
+          event_id:      params.eventId,
+          url:           photo.url,
+          thumbnail_url: photo.thumbnailUrl ?? photo.url,
+          name:          photo.name ?? "",
+          faces_count:   photo.facesCount ?? 0,
+          tags:          photo.tags ?? [],
+          indexed:       photo.indexed ?? false,
+          saved_at:      photo.savedAt ?? new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      await supabase.rpc("increment_photo_count", {
+        p_event_id: params.eventId,
+        p_amount:   1,
+      });
+
+      return NextResponse.json({ photo: toStoredPhoto(data as DbPhoto) });
+    }
 
     if (body.action === "update" && body.photoId) {
       const patch = body.patch as { faces_count?: number; tags?: string[]; indexed?: boolean };

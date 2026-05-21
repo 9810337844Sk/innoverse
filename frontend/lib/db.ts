@@ -95,22 +95,30 @@ export async function savePhotos(eventId: string, photos: StoredPhoto[]): Promis
   // Photos are already persisted to Supabase at upload time.
   // This function is kept for compatibility — it updates indexed/tags/facesCount
   // for photos that have been face-indexed client-side.
-  const updates = photos.map(p => ({
+  const drivePhotos = photos.filter(p => p._id.startsWith("drive_") || p.url.startsWith("/api/drive/image"));
+  const updates = photos.filter(p => !drivePhotos.includes(p)).map(p => ({
     id:          p._id,
     faces_count: p.facesCount,
     tags:        p.tags,
     indexed:     p.indexed,
   }));
 
-  await Promise.all(
-    updates.map(u =>
+  await Promise.all([
+    ...updates.map(u =>
       fetch(`/api/photos/${eventId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update", photoId: u.id, patch: u }),
       })
-    )
-  );
+    ),
+    ...drivePhotos.map(photo =>
+      fetch(`/api/photos/${eventId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "upsert", photo }),
+      })
+    ),
+  ]);
 }
 
 export async function pushPhotos(_eventId: string, _photos: StoredPhoto[]): Promise<void> {

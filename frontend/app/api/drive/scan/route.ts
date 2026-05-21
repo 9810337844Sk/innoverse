@@ -12,8 +12,15 @@ function parseDriveFolderId(input: string | null) {
 
   const patterns = [
     /\/folders\/([a-zA-Z0-9_-]+)/,
+    /\/drive\/(?:u\/\d+\/)?folders\/([a-zA-Z0-9_-]+)/,
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /\/document\/d\/([a-zA-Z0-9_-]+)/,
+    /\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/,
+    /\/presentation\/d\/([a-zA-Z0-9_-]+)/,
+    /\/open\?id=([a-zA-Z0-9_-]+)/,
     /[?&]id=([a-zA-Z0-9_-]+)/,
     /[?&]folders=([a-zA-Z0-9_-]+)/,
+    /[?&]q=([a-zA-Z0-9_-]{20,})/,
   ];
 
   for (const pattern of patterns) {
@@ -64,41 +71,107 @@ export async function GET(req: NextRequest) {
     if (!folderName) {
       const folder = await drive.files.get({
         fileId: folderId,
-        fields: "id,name",
+        fields: "id,name,mimeType,thumbnailLink,webViewLink,webContentLink,size,createdTime,shortcutDetails",
+        supportsAllDrives: true,
       });
+      if (folder.data.mimeType === "application/vnd.google-apps.shortcut" && folder.data.shortcutDetails?.targetId) {
+        return NextResponse.redirect(new URL(`/api/drive/scan?folderId=${folder.data.shortcutDetails.targetId}`, req.url));
+      }
       folderName = folder.data.name || "Google Drive Folder";
-    }
 
-    // List all images in the folder (recursive via pageToken)
-    const photos: DrivePhoto[] = [];
-    let pageToken: string | undefined;
-
-    do {
-      const res = await drive.files.list({
-        q: `'${folderId}' in parents and mimeType contains 'image/' and trashed=false`,
-        fields: "nextPageToken,files(id,name,mimeType,thumbnailLink,webViewLink,webContentLink,size,createdTime)",
-        pageSize: 200,
-        pageToken,
-      });
-
-      for (const f of res.data.files || []) {
-        photos.push({
-          id:              f.id!,
-          name:            f.name!,
-          mimeType:        f.mimeType!,
-          thumbnailLink:   f.thumbnailLink || "",
-          webViewLink:     f.webViewLink   || "",
-          webContentLink:  f.webContentLink || "",
-          size:            f.size          || "0",
-          createdTime:     f.createdTime   || "",
+      if (folder.data.mimeType?.startsWith("image/")) {
+        const photo: DrivePhoto = {
+          id:              folder.data.id!,
+          name:            folder.data.name!,
+          mimeType:        folder.data.mimeType!,
+          thumbnailLink:   folder.data.thumbnailLink || "",
+          webViewLink:     folder.data.webViewLink || "",
+          webContentLink:  folder.data.webContentLink || "",
+          size:            folder.data.size || "0",
+          createdTime:     folder.data.createdTime || "",
           folderId,
           folderName,
-          proxyUrl:        `/api/drive/image?fileId=${f.id}`,
-        });
-      }
+          proxyUrl:        `/api/drive/image?fileId=${folder.data.id}`,
+        };
 
-      pageToken = res.data.nextPageToken || undefined;
-    } while (pageToken);
+        return NextResponse.json({ photos: [photo], total: 1, folderId, folderName });
+      }
+    }
+
+    // List all images in the folder, including nested folders.
+    const photos: DrivePhoto[] = [];
+
+    const scanFolder = async (currentFolderId: string, currentFolderName: string): Promise<void> => {
+      let pageToken: string | undefined;
+
+      do {
+        const res = await drive.files.list({
+          q: `'${currentFolderId}' in parents and (mimeType contains 'image/' or mimeType='application/vnd.google-apps.folder' or mimeType='application/vnd.google-apps.shortcut') and trashed=false`,
+          fields: "nextPageToken,files(id,name,mimeType,thumbnailLink,webViewLink,webContentLink,size,createdTime,shortcutDetails)",
+          pageSize: 200,
+          pageToken,
+          includeItemsFromAllDrives: true,
+          supportsAllDrives: true,
+        });
+
+        for (const f of res.data.files || []) {
+          if (f.mimeType === "application/vnd.google-apps.folder") {
+            await scanFolder(f.id!, f.name || currentFolderName);
+            continue;
+          }
+
+          if (f.mimeType === "application/vnd.google-apps.shortcut" && f.shortcutDetails?.targetId) {
+            const target = await drive.files.get({
+              fileId: f.shortcutDetails.targetId,
+              fields: "id,name,mimeType,thumbnailLink,webViewLink,webContentLink,size,createdTime",
+              supportsAllDrives: true,
+            });
+
+            if (target.data.mimeType === "application/vnd.google-apps.folder") {
+              await scanFolder(target.data.id!, target.data.name || currentFolderName);
+              continue;
+            }
+
+            if (target.data.mimeType?.startsWith("image/")) {
+              photos.push({
+                id:              target.data.id!,
+                name:            target.data.name!,
+                mimeType:        target.data.mimeType!,
+                thumbnailLink:   target.data.thumbnailLink || "",
+                webViewLink:     target.data.webViewLink || "",
+                webContentLink:  target.data.webContentLink || "",
+                size:            target.data.size || "0",
+                createdTime:     target.data.createdTime || "",
+                folderId:        currentFolderId,
+                folderName:      currentFolderName,
+                proxyUrl:        `/api/drive/image?fileId=${target.data.id}`,
+              });
+            }
+            continue;
+          }
+
+          if (f.mimeType?.startsWith("image/")) {
+            photos.push({
+              id:              f.id!,
+              name:            f.name!,
+              mimeType:        f.mimeType!,
+              thumbnailLink:   f.thumbnailLink || "",
+              webViewLink:     f.webViewLink   || "",
+              webContentLink:  f.webContentLink || "",
+              size:            f.size          || "0",
+              createdTime:     f.createdTime   || "",
+              folderId:        currentFolderId,
+              folderName:      currentFolderName,
+              proxyUrl:        `/api/drive/image?fileId=${f.id}`,
+            });
+          }
+        }
+
+        pageToken = res.data.nextPageToken || undefined;
+      } while (pageToken);
+    };
+
+    await scanFolder(folderId, folderName);
 
     // Cache scan results server-side
     const dataDir = path.join(process.cwd(), "public", "data");
