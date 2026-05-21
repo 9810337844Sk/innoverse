@@ -21,8 +21,6 @@ const STEP_META = [
   { key: "results", label: "Your Photos", num: 3 },
 ] as const;
 
-const DEMO_CODES = ["SACHIN2026", "ALYSAWED", "CARSON26", "GALA2025", "MARATHON26"];
-
 export default function FindPage() {
   const [step, setStep]                   = useState<Step>("code");
   const [eventCode, setEventCode]         = useState("");
@@ -241,22 +239,6 @@ export default function FindPage() {
                       onFocus={e => { e.target.style.borderColor = "#FF2D78"; e.target.style.boxShadow = "0 0 0 3px rgba(255,45,120,0.1)"; }}
                       onBlur={e => { e.target.style.borderColor = "rgba(255,45,120,0.2)"; e.target.style.boxShadow = "none"; }}
                     />
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-slate-400 text-center mb-2">Try a demo code:</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {DEMO_CODES.map(code => (
-                        <button key={code} onClick={() => setEventCode(code)}
-                          className="font-mono text-xs px-3 py-1.5 rounded-xl font-semibold transition-all duration-200"
-                          style={eventCode === code
-                            ? { background: "linear-gradient(135deg,#FF2D78,#A855F7)", color: "white", boxShadow: "0 2px 10px rgba(255,45,120,0.3)" }
-                            : { background: "rgba(255,45,120,0.06)", color: "#FF2D78", border: "1px solid rgba(255,45,120,0.2)" }
-                          }>
-                          {code}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   <button onClick={handleCodeContinue} disabled={loading || !eventCode.trim()}
