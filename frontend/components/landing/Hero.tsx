@@ -44,14 +44,17 @@ function Particles() {
   );
 }
 
+const RIVERSIDE_IMAGE = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgEZdn9y5SsiBSylgTK1lE_hp6k8e0W7SlMMeh59Vmt0JcROJpDgjCB0y7BHZv_3MO4P4nXYtty1UN5aOMkv51GdXaEpHWr8Civ-hUgj9vlVwlb20GiYWulXHkuIsdoQYEAFk9hGRr5itMdctbikGVdtd2zB55RJZ_JkAAM2TpnceDKdyMuIBfb1afFGZc_/s1600/Riverside%20moments,%20endless%20laughter,%20and%20memories%20we%20won%E2%80%99t%20forget.%23sunwaycolleg%3Cdiv%20class=";
+const WHATSAPP_IMAGE = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj-1fnygfTN2VR1NViEGoRUHG2JcgWSK3XL9eWK7P-5gv5dNGRIbhYWXFf7y5X2QmnYkzHEGLIoqfX61Sc87ticiv8_2FGPfkj77ZOpO2gPgRpCWPyATdMlzPRiPXgdk8AndQNXKm7Nu9Gl1-abbZodhKnEghUlMSqJDUjKwxTyBacyNl_CZtfRXPYSsgwi/s1600/WhatsApp%20Image%202026-05-20%20at%201.19.57%20PM.jpeg";
+
 const COLLAGE = [
-  { url: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgEZdn9y5SsiBSylgTK1lE_hp6k8e0W7SlMMeh59Vmt0JcROJpDgjCB0y7BHZv_3MO4P4nXYtty1UN5aOMkv51GdXaEpHWr8Civ-hUgj9vlVwlb20GiYWulXHkuIsdoQYEAFk9hGRr5itMdctbikGVdtd2zB55RJZ_JkAAM2TpnceDKdyMuIBfb1afFGZc_/s1600/Riverside%20moments,%20endless%20laughter,%20and%20memories%20we%20won%E2%80%99t%20forget.%23sunwaycolleg%3Cdiv%20class=", w: 2, h: 2, match: true },
-  { url: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj-1fnygfTN2VR1NViEGoRUHG2JcgWSK3XL9eWK7P-5gv5dNGRIbhYWXFf7y5X2QmnYkzHEGLIoqfX61Sc87ticiv8_2FGPfkj77ZOpO2gPgRpCWPyATdMlzPRiPXgdk8AndQNXKm7Nu9Gl1-abbZodhKnEghUlMSqJDUjKwxTyBacyNl_CZtfRXPYSsgwi/s1600/WhatsApp%20Image%202026-05-20%20at%201.19.57%20PM.jpeg", w: 1, h: 1, match: false },
+  { url: RIVERSIDE_IMAGE, w: 2, h: 2, match: true },
+  { url: WHATSAPP_IMAGE, w: 1, h: 1, match: false },
   { url: "https://i.pinimg.com/originals/06/97/65/0697650a10f853205beeb731a7836d37.jpg", w: 1, h: 1, match: false },
   { url: "https://t3.ftcdn.net/jpg/19/25/44/64/360_F_1925446413_4LzeQ3mPGDNV3BJSh13TVSQwQZLTUDIe.jpg", w: 1, h: 2, match: true },
   { url: "https://t3.ftcdn.net/jpg/10/36/97/86/360_F_1036978629_GJQQnjzhhrRNe9Wi1dzVSTSZzP9Qqkzr.jpg", w: 2, h: 1, match: false },
-  { url: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgEZdn9y5SsiBSylgTK1lE_hp6k8e0W7SlMMeh59Vmt0JcROJpDgjCB0y7BHZv_3MO4P4nXYtty1UN5aOMkv51GdXaEpHWr8Civ-hUgj9vlVwlb20GiYWulXHkuIsdoQYEAFk9hGRr5itMdctbikGVdtd2zB55RJZ_JkAAM2TpnceDKdyMuIBfb1afFGZc_/s1600/Riverside%20moments,%20endless%20laughter,%20and%20memories%20we%20won%E2%80%99t%20forget.%23sunwaycolleg%3Cdiv%20class=", w: 1, h: 1, match: true },
-  { url: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj-1fnygfTN2VR1NViEGoRUHG2JcgWSK3XL9eWK7P-5gv5dNGRIbhYWXFf7y5X2QmnYkzHEGLIoqfX61Sc87ticiv8_2FGPfkj77ZOpO2gPgRpCWPyATdMlzPRiPXgdk8AndQNXKm7Nu9Gl1-abbZodhKnEghUlMSqJDUjKwxTyBacyNl_CZtfRXPYSsgwi/s1600/WhatsApp%20Image%202026-05-20%20at%201.19.57%20PM.jpeg", w: 1, h: 1, match: false },
+  { url: RIVERSIDE_IMAGE, w: 1, h: 1, match: true },
+  { url: WHATSAPP_IMAGE, w: 1, h: 1, match: false },
   { url: "https://i.pinimg.com/originals/06/97/65/0697650a10f853205beeb731a7836d37.jpg", w: 2, h: 1, match: false },
   { url: "https://t3.ftcdn.net/jpg/19/25/44/64/360_F_1925446413_4LzeQ3mPGDNV3BJSh13TVSQwQZLTUDIe.jpg", w: 1, h: 1, match: true },
 ];
@@ -247,6 +250,28 @@ export default function Hero() {
                 </div>
               ))}
             </motion.div>
+
+            <motion.div
+              custom={6} variants={fadeLeft} initial="hidden" animate="show"
+              className="mt-7 grid grid-cols-2 gap-3 w-full lg:hidden"
+            >
+              {[RIVERSIDE_IMAGE, WHATSAPP_IMAGE].map((url, i) => (
+                <div
+                  key={url}
+                  className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-primary/10 shadow-card bg-white"
+                >
+                  <Image
+                    src={url}
+                    alt={`Event memory ${i + 1}`}
+                    fill
+                    unoptimized
+                    sizes="(max-width: 1024px) 50vw, 0px"
+                    className="object-cover"
+                    priority={i === 0}
+                  />
+                </div>
+              ))}
+            </motion.div>
           </div>
 
           {/* ── Right collage — hidden on mobile, shown lg+ ── */}
@@ -278,6 +303,7 @@ export default function Hero() {
                     src={photo.url}
                     alt=""
                     fill
+                    unoptimized={photo.url.includes("blogger.googleusercontent.com")}
                     className="object-cover transition-all duration-500 group-hover:scale-110"
                     style={{ filter: photo.match ? "none" : "brightness(0.45) saturate(0.6)" }}
                   />
