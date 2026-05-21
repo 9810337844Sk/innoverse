@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { createVerificationToken, generateOtp, hashOtp } from "@/lib/emailVerification";
+import { sendOtpEmail } from "@/lib/mailer";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,38 +39,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Server error" }, { status: 500 });
     }
 
-    const { data: newUser, error: insertError } = await supabase
-      .from("users")
-      .insert({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        password_hash: hashResult as string,
-        role: userRole,
-        plan: "free",
-      })
-      .select("id, name, email, role, plan")
-      .single();
+    const normalizedEmail = email.toLowerCase().trim();
+    const otp = generateOtp();
+    const verificationToken = createVerificationToken({
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash: hashResult as string,
+      role: userRole,
+      otpHash: hashOtp(otp, normalizedEmail),
+    });
 
-    if (insertError || !newUser) {
-      console.error("[register] insert error", insertError);
-      return NextResponse.json({ message: "Failed to create account" }, { status: 500 });
-    }
+    await sendOtpEmail({ to: normalizedEmail, name: name.trim(), otp });
 
-    const safeUser = {
-      _id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      plan: newUser.plan,
-    };
-
-    const token = Buffer.from(
-      JSON.stringify({ id: newUser.id, role: newUser.role, exp: Date.now() + 7 * 86400000 })
-    ).toString("base64");
-
-    return NextResponse.json({ user: safeUser, token }, { status: 201 });
+    return NextResponse.json({
+      message: "Verification code sent to your email",
+      verificationToken,
+      email: normalizedEmail,
+    });
   } catch (err) {
     console.error("[register]", err);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    const message = err instanceof Error && err.message.includes("SMTP")
+      ? "Email service is not configured"
+      : "Server error";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

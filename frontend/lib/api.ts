@@ -32,6 +32,17 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
     return { data: json };
   }
 
+  if (url.includes("/auth/verify-register")) {
+    const res = await fetch("/api/auth/verify-register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw { response: { data: json } };
+    return { data: json };
+  }
+
   // ── EVENTS ────────────────────────────────────────────────────────────────
   if (url.includes("/events")) {
     // GET single event

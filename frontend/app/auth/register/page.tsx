@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, User, Camera, Sparkles, Shield, Zap, CheckCircle } from "lucide-react";
+import { Mail, Lock, User, Camera, Sparkles, Shield, Zap, CheckCircle, KeyRound, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,9 @@ function RegisterForm() {
   const user         = useAuthStore(s => s.user);
   const _hasHydrated = useAuthStore(s => s._hasHydrated);
   const [form, setForm]       = useState({ name: "", email: "", password: "" });
+  const [otp, setOtp] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   // If already logged in → redirect to dashboard
@@ -43,15 +46,38 @@ function RegisterForm() {
     setLoading(true);
     try {
       const { data } = await api.post("/auth/register", { ...form, role: "photographer" }) as {
-        data: { user: { role: string }; token: string };
+        data: { verificationToken: string; email: string; message: string };
       };
-      setAuth(data.user as Parameters<typeof setAuth>[0], data.token);
-      toast.success("Account created! Welcome to PhotoFly 🎉");
-      router.push("/dashboard");
+      setVerificationToken(data.verificationToken);
+      setPendingEmail(data.email);
+      setOtp("");
+      toast.success(data.message || "Verification code sent to your email");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
       toast.error(msg);
     } finally { setLoading(false); }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data } = await api.post("/auth/verify-register", { verificationToken, otp }) as {
+        data: { user: { role: string }; token: string };
+      };
+      setAuth(data.user as Parameters<typeof setAuth>[0], data.token);
+      toast.success("Account verified! Welcome to PhotoFly");
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Verification failed";
+      toast.error(msg);
+    } finally { setLoading(false); }
+  };
+
+  const resetVerification = () => {
+    setVerificationToken("");
+    setPendingEmail("");
+    setOtp("");
   };
 
   return (
@@ -159,8 +185,12 @@ function RegisterForm() {
 
           {/* Heading */}
           <div className="mb-8">
-            <h1 className="font-black text-3xl text-deep tracking-tight mb-2">Create account</h1>
-            <p className="text-slate-500 text-sm">Join photographers already using PhotoFly</p>
+            <h1 className="font-black text-3xl text-deep tracking-tight mb-2">
+              {verificationToken ? "Verify email" : "Create account"}
+            </h1>
+            <p className="text-slate-500 text-sm">
+              {verificationToken ? `Enter the code sent to ${pendingEmail}` : "Join photographers already using PhotoFly"}
+            </p>
           </div>
 
           {/* Form card */}
@@ -169,42 +199,70 @@ function RegisterForm() {
               border: "1px solid rgba(255,45,120,0.12)",
               boxShadow: "0 8px 40px rgba(255,45,120,0.08), 0 2px 8px rgba(0,0,0,0.04)",
             }}>
-            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-              <Input
-                label="Full Name"
-                placeholder="Your full name"
-                icon={<User size={16} />}
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                autoComplete="off"
-                required
-              />
-              <Input
-                label="Email address"
-                type="email"
-                placeholder="you@example.com"
-                icon={<Mail size={16} />}
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                autoComplete="new-email"
-                required
-              />
-              <Input
-                label="Password"
-                type="password"
-                placeholder="Min. 8 characters"
-                icon={<Lock size={16} />}
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                autoComplete="new-password"
-                required
-                minLength={8}
-              />
+            {verificationToken ? (
+              <form onSubmit={handleVerify} className="space-y-5" autoComplete="off">
+                <Input
+                  label="Verification code"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="6-digit code"
+                  icon={<KeyRound size={16} />}
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  autoComplete="one-time-code"
+                  required
+                />
 
-              <Button type="submit" fullWidth loading={loading} size="lg">
-                Create Account
-              </Button>
-            </form>
+                <Button type="submit" fullWidth loading={loading} disabled={otp.length !== 6} size="lg">
+                  Verify & Create Account
+                </Button>
+                <button
+                  type="button"
+                  onClick={resetVerification}
+                  className="w-full inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-700"
+                >
+                  <ArrowLeft size={14} /> Change email
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+                <Input
+                  label="Full Name"
+                  placeholder="Your full name"
+                  icon={<User size={16} />}
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  autoComplete="off"
+                  required
+                />
+                <Input
+                  label="Email address"
+                  type="email"
+                  placeholder="you@example.com"
+                  icon={<Mail size={16} />}
+                  value={form.email}
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  autoComplete="new-email"
+                  required
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  icon={<Lock size={16} />}
+                  value={form.password}
+                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                />
+
+                <Button type="submit" fullWidth loading={loading} size="lg">
+                  Send Verification Code
+                </Button>
+              </form>
+            )}
 
             <div className="mt-6 pt-5 text-center text-sm text-slate-500"
               style={{ borderTop: "1px solid rgba(255,45,120,0.08)" }}>
