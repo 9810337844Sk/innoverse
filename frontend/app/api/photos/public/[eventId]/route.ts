@@ -7,6 +7,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { DbPhoto } from "@/lib/supabase";
+import fs from "fs/promises";
+import path from "path";
+
+export const dynamic = "force-dynamic";
+
+type LegacyPhoto = {
+  _id?: string;
+  url?: string;
+  thumbnailUrl?: string;
+  name?: string;
+  facesCount?: number;
+  tags?: string[];
+  indexed?: boolean;
+  savedAt?: string;
+};
+
+async function readLegacyPhotos(eventId: string) {
+  const candidates = [
+    path.join(process.cwd(), "public", "data", `photos_${eventId}.json`),
+    path.join(process.cwd(), "frontend", "public", "data", `photos_${eventId}.json`),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      const photos = JSON.parse(raw) as LegacyPhoto[];
+      return photos.map((p, index) => ({
+        _id:          p._id ?? `legacy_${eventId}_${index}`,
+        url:          p.url ?? "",
+        thumbnailUrl: p.thumbnailUrl ?? p.url ?? "",
+        name:         p.name ?? "",
+        facesCount:   p.facesCount ?? 0,
+        tags:         p.tags ?? [],
+        indexed:      p.indexed ?? false,
+        savedAt:      p.savedAt ?? new Date().toISOString(),
+      })).filter(p => p.url);
+    } catch {
+      // Try the next possible project root.
+    }
+  }
+
+  return [];
+}
 
 export async function GET(
   _req: NextRequest,
@@ -22,6 +65,9 @@ export async function GET(
       .single();
 
     if (evErr || !event) {
+      const legacyPhotos = await readLegacyPhotos(params.eventId);
+      if (legacyPhotos.length) return NextResponse.json({ photos: legacyPhotos });
+
       return NextResponse.json({ photos: [] }, { status: 404 });
     }
 
@@ -44,9 +90,10 @@ export async function GET(
       savedAt:      p.saved_at,
     }));
 
-    return NextResponse.json({ photos });
+    return NextResponse.json({ photos: photos.length ? photos : await readLegacyPhotos(params.eventId) });
   } catch (err) {
     console.error("[GET /api/photos/public/[eventId]]", err);
-    return NextResponse.json({ photos: [] }, { status: 500 });
+    const legacyPhotos = await readLegacyPhotos(params.eventId);
+    return NextResponse.json({ photos: legacyPhotos }, { status: legacyPhotos.length ? 200 : 500 });
   }
 }
