@@ -35,6 +35,18 @@ function normalizeEvent(event: StoredEvent): StoredEvent {
   };
 }
 
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem("auth-storage");
+    const token = raw ? JSON.parse(raw)?.state?.token : "";
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 // ── Events ────────────────────────────────────────────────────────────────────
 
 export async function getEvents(): Promise<StoredEvent[]> {
@@ -107,16 +119,16 @@ export async function savePhotos(eventId: string, photos: StoredPhoto[]): Promis
     ...updates.map(u =>
       fetch(`/api/photos/${eventId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ action: "update", photoId: u.id, patch: u }),
       })
     ),
     ...drivePhotos.map(photo =>
-      fetch(`/api/photos/${eventId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "upsert", photo }),
-      })
+        fetch(`/api/photos/${eventId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify({ action: "upsert", photo }),
+        })
     ),
   ]);
 }
@@ -128,7 +140,7 @@ export async function pushPhotos(_eventId: string, _photos: StoredPhoto[]): Prom
 export async function deletePhoto(eventId: string, photoId: string): Promise<void> {
   await fetch(`/api/photos/${eventId}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ action: "delete", photoId }),
   });
 }

@@ -17,6 +17,7 @@ import api from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import { getPhotos, savePhotos, pushPhotos, deletePhoto as deletePhotoFromDB, type StoredPhoto } from "@/lib/db";
+import { useAuthStore } from "@/store/authStore";
 
 type Photo = StoredPhoto;
 type Event = {
@@ -41,6 +42,7 @@ export default function EventDetailPage() {
   const [lightbox, setLightbox]     = useState<Photo | null>(null);
   const [filter, setFilter]         = useState<"all"|"indexed"|"pending">("all");
   const pendingRef = useRef<Photo[]>([]);
+  const token = useAuthStore(s => s.token);
 
   useEffect(() => {
     api.get(`/events/${id}`)
@@ -67,8 +69,15 @@ export default function EventDetailPage() {
       form.append("eventName", event.name);
       batch.forEach((f) => form.append("photos", f));
       try {
-        const res  = await fetch("/api/upload", { method: "POST", body: form });
-        if (!res.ok) throw new Error("Upload failed");
+        const res  = await fetch("/api/upload", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: form,
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({})) as { error?: string; message?: string };
+          throw new Error(json.error || json.message || "Upload failed");
+        }
         const json = await res.json() as { photos: { _id: string; url: string; thumbnailUrl?: string; name: string; cloudinaryPublicId?: string }[] };
         const newPhotos: Photo[] = json.photos.map((p) => ({
           _id: p._id, url: p.url, thumbnailUrl: p.thumbnailUrl ?? p.url, name: p.name,
@@ -78,7 +87,9 @@ export default function EventDetailPage() {
         justUploaded.push(...newPhotos); pendingRef.current.push(...newPhotos);
         await pushPhotos(id, newPhotos);
         setPhotos((prev) => [...prev, ...newPhotos]);
-      } catch { toast.error(`Batch ${Math.floor(i / BATCH) + 1} failed`); }
+      } catch (err) {
+        toast.error(`Batch ${Math.floor(i / BATCH) + 1} failed: ${err instanceof Error ? err.message : "Upload failed"}`);
+      }
       const done = Math.min(i + BATCH, acceptedFiles.length);
       setDoneCount(done); setProgress(Math.round((done / acceptedFiles.length) * 100));
     }

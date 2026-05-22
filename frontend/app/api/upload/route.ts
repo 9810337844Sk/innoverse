@@ -15,7 +15,7 @@
  * Returns: { photos: SavedPhoto[], count: number }
  */
 import { NextRequest, NextResponse } from "next/server";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { deleteFromCloudinary, uploadToCloudinary } from "@/lib/cloudinary";
 import { supabase } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/serverAuth";
 import type { DbEvent } from "@/lib/supabase";
@@ -29,6 +29,49 @@ type SavedPhoto = {
   name: string;
   cloudinaryPublicId: string;
 };
+
+async function insertPhotoRow(input: {
+  eventId: string;
+  url: string;
+  thumbnailUrl: string;
+  name: string;
+  cloudinaryPublicId: string;
+}) {
+  const row = {
+    event_id:             input.eventId,
+    url:                  input.url,
+    thumbnail_url:        input.thumbnailUrl,
+    name:                 input.name,
+    cloudinary_public_id: input.cloudinaryPublicId,
+    saved_at:             new Date().toISOString(),
+  };
+
+  const inserted = await supabase
+    .from("photos")
+    .insert(row)
+    .select("id")
+    .single();
+
+  if (!inserted.error) return inserted.data;
+
+  const message = inserted.error.message.toLowerCase();
+  if (!message.includes("cloudinary_public_id")) throw inserted.error;
+
+  const retry = await supabase
+    .from("photos")
+    .insert({
+      event_id:      row.event_id,
+      url:           row.url,
+      thumbnail_url: row.thumbnail_url,
+      name:          row.name,
+      saved_at:      row.saved_at,
+    })
+    .select("id")
+    .single();
+
+  if (retry.error) throw retry.error;
+  return retry.data;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -89,25 +132,24 @@ export async function POST(req: NextRequest) {
       const { url, thumbnailUrl, publicId: fullPublicId } =
         await uploadToCloudinary(buffer, publicId, folder);
 
-      const { data: row, error } = await supabase
-        .from("photos")
-        .insert({
-          event_id:             eventId,
+      let row: { id: string };
+      try {
+        row = await insertPhotoRow({
+          eventId,
           url,
-          thumbnail_url:        thumbnailUrl,
-          name:                 file.name,
-          cloudinary_public_id: fullPublicId,
-          saved_at:             new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        console.error("[upload] Supabase insert error:", error.message);
+          thumbnailUrl,
+          name: file.name,
+          cloudinaryPublicId: fullPublicId,
+        });
+      } catch (error) {
+        await deleteFromCloudinary(fullPublicId).catch(e =>
+          console.warn("[upload] Cloudinary rollback failed:", e)
+        );
+        throw error;
       }
 
       saved.push({
-        _id:                row?.id ?? `cld_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        _id:                row.id,
         url,
         thumbnailUrl,
         name:               file.name,

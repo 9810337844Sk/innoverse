@@ -6,6 +6,18 @@
 
 const delay = (ms = 80) => new Promise(r => setTimeout(r, ms));
 
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem("auth-storage");
+    const token = raw ? JSON.parse(raw)?.state?.token : "";
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function request(method: string, url: string, data?: unknown): Promise<{ data: unknown }> {
   await delay();
 
@@ -48,7 +60,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
     // GET single event
     if (method === "GET" && url.match(/\/events\/[^/?]+$/)) {
       const id = url.split("/").pop()!;
-      const res = await fetch(`/api/events/${id}`);
+      const res = await fetch(`/api/events/${id}`, { headers: getAuthHeaders() });
       const json = await res.json();
       if (!res.ok) throw { response: { data: json } };
       return { data: json };
@@ -58,7 +70,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
     if (method === "GET") {
       const limitMatch = url.match(/limit=(\d+)/);
       const limit = limitMatch ? limitMatch[1] : "50";
-      const res = await fetch(`/api/events?limit=${limit}`);
+      const res = await fetch(`/api/events?limit=${limit}`, { headers: getAuthHeaders() });
       const json = await res.json();
       if (!res.ok) throw { response: { data: json } };
       return { data: json };
@@ -68,7 +80,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
     if (method === "POST") {
       const res = await fetch("/api/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(data),
       });
       const json = await res.json();
@@ -81,7 +93,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
       const id = url.split("/").pop()!;
       const res = await fetch(`/api/events/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(data),
       });
       const json = await res.json();
@@ -92,7 +104,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
     // DELETE
     if (method === "DELETE") {
       const id = url.split("/").pop()!;
-      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE", headers: getAuthHeaders() });
       const json = await res.json();
       if (!res.ok) throw { response: { data: json } };
       return { data: json };
@@ -112,21 +124,21 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
 
   // ── STATS ─────────────────────────────────────────────────────────────────
   if (url.includes("/photographer/stats")) {
-    const res = await fetch("/api/photographer/stats");
+    const res = await fetch("/api/photographer/stats", { headers: getAuthHeaders() });
     const json = await res.json();
     if (!res.ok) throw { response: { data: json } };
     return { data: json };
   }
 
   if (url.includes("/admin/stats")) {
-    const res = await fetch("/api/admin/stats");
+    const res = await fetch("/api/admin/stats", { headers: getAuthHeaders() });
     const json = await res.json();
     if (!res.ok) throw { response: { data: json } };
     return { data: json };
   }
 
   if (url.includes("/admin/users") && method === "GET") {
-    const res = await fetch("/api/admin/users");
+    const res = await fetch("/api/admin/users", { headers: getAuthHeaders() });
     const json = await res.json();
     if (!res.ok) throw { response: { data: json } };
     return { data: json };
@@ -136,7 +148,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
     const id = url.split("/admin/users/")[1].split("/")[0];
     const res = await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
     const json = await res.json();
@@ -146,7 +158,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
 
   if (url.includes("/admin/users") && method === "DELETE") {
     const id = url.split("/admin/users/")[1];
-    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: getAuthHeaders() });
     const json = await res.json();
     if (!res.ok) throw { response: { data: json } };
     return { data: json };
@@ -155,7 +167,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
   if (url.includes("/admin/events") && method === "PATCH") {
     const res = await fetch("/api/admin/events", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
     const json = await res.json();
@@ -164,7 +176,7 @@ async function request(method: string, url: string, data?: unknown): Promise<{ d
   }
 
   if (url.includes("/admin/events")) {
-    const res = await fetch("/api/admin/events");
+    const res = await fetch("/api/admin/events", { headers: getAuthHeaders() });
     const json = await res.json();
     if (!res.ok) throw { response: { data: json } };
     return { data: json };

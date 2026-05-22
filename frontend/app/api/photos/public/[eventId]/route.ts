@@ -23,6 +23,60 @@ type LegacyPhoto = {
   savedAt?: string;
 };
 
+type CloudinaryResource = {
+  public_id: string;
+  secure_url: string;
+  created_at?: string;
+};
+
+function toEventFolder(photographerId: string, eventCode: string) {
+  const folderSlug = eventCode.replace(/[^a-zA-Z0-9_-]/g, "_").toUpperCase();
+  return `photofly/photographers/${photographerId}/events/${folderSlug}`;
+}
+
+async function readCloudinaryPhotos(photographerId: string, eventCode: string) {
+  const { cloudinary } = await import("@/lib/cloudinary");
+  const folder = toEventFolder(photographerId, eventCode);
+  const resources: CloudinaryResource[] = [];
+  let nextCursor: string | undefined;
+
+  do {
+    const result = await cloudinary.api.resources({
+      type: "upload",
+      resource_type: "image",
+      prefix: `${folder}/`,
+      max_results: 500,
+      next_cursor: nextCursor,
+    });
+
+    resources.push(...((result.resources ?? []) as CloudinaryResource[]));
+    nextCursor = result.next_cursor;
+  } while (nextCursor);
+
+  return resources.map(resource => {
+    const name = resource.public_id.split("/").pop() ?? resource.public_id;
+
+    return {
+      _id:          `cloudinary_${resource.public_id}`,
+      url:          resource.secure_url,
+      thumbnailUrl: cloudinary.url(resource.public_id, {
+        width: 400,
+        height: 400,
+        crop: "fill",
+        gravity: "auto",
+        quality: "auto",
+        fetch_format: "auto",
+        secure: true,
+      }),
+      name,
+      facesCount:   0,
+      tags:         [],
+      indexed:      false,
+      savedAt:      resource.created_at ?? new Date().toISOString(),
+    };
+  });
+}
+
 async function readLegacyPhotos(eventId: string) {
   const candidates = [
     path.join(process.cwd(), "public", "data", `photos_${eventId}.json`),
@@ -59,7 +113,7 @@ export async function GET(
     // Verify the event exists and is active before returning photos
     const { data: event, error: evErr } = await supabase
       .from("events")
-      .select("id, is_active")
+      .select("id, is_active, code, photographer_id")
       .eq("id", params.eventId)
       .eq("is_active", true)
       .single();
@@ -90,7 +144,12 @@ export async function GET(
       savedAt:      p.saved_at,
     }));
 
-    return NextResponse.json({ photos: photos.length ? photos : await readLegacyPhotos(params.eventId) });
+    if (photos.length) return NextResponse.json({ photos });
+
+    const cloudinaryPhotos = await readCloudinaryPhotos(event.photographer_id, event.code);
+    if (cloudinaryPhotos.length) return NextResponse.json({ photos: cloudinaryPhotos });
+
+    return NextResponse.json({ photos: await readLegacyPhotos(params.eventId) });
   } catch (err) {
     console.error("[GET /api/photos/public/[eventId]]", err);
     const legacyPhotos = await readLegacyPhotos(params.eventId);
