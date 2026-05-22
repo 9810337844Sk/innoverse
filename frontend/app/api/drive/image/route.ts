@@ -4,19 +4,7 @@
  * and CORS blocks direct browser access.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { google } from "googleapis";
-import { readFile } from "fs/promises";
-import path from "path";
-import { getOAuthClient } from "@/lib/drive-auth";
-
-async function getAuthedClient() {
-  const tokensPath = path.join(process.cwd(), "public", "data", "drive_tokens.json");
-  const raw = await readFile(tokensPath, "utf-8");
-  const tokens = JSON.parse(raw);
-  const oauth2 = getOAuthClient();
-  oauth2.setCredentials(tokens);
-  return oauth2;
-}
+import { getDriveClient } from "@/lib/drive";
 
 // GET /api/drive/image?fileId=xxx
 export async function GET(req: NextRequest) {
@@ -24,8 +12,7 @@ export async function GET(req: NextRequest) {
   if (!fileId) return new NextResponse("fileId required", { status: 400 });
 
   try {
-    const auth  = await getAuthedClient();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getDriveClient(req);
 
     const res = await drive.files.get(
       { fileId, alt: "media", supportsAllDrives: true },

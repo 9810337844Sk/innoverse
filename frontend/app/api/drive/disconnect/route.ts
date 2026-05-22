@@ -6,5 +6,11 @@ export async function POST() {
   try {
     await unlink(path.join(process.cwd(), "public", "data", "drive_tokens.json"));
   } catch { /* already gone */ }
-  return NextResponse.json({ ok: true });
+  try {
+    await unlink(path.join("/tmp", "drive_tokens.json"));
+  } catch { /* already gone */ }
+
+  const res = NextResponse.json({ ok: true });
+  res.cookies.delete("drive_tokens");
+  return res;
 }

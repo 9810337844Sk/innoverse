@@ -146,35 +146,40 @@ export default function EventDetailPage() {
     if (!event || !driveUrl.trim()) { toast.error("Paste a Google Drive folder URL first"); return; }
     setSyncingDrive(true);
     try {
-      const res = await fetch(`/api/drive/scan?folderUrl=${encodeURIComponent(driveUrl.trim())}`);
+      const res = await fetch("/api/drive/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          eventId: id,
+          eventCode: event.code,
+          eventName: event.name,
+          folderUrl: driveUrl.trim(),
+        }),
+      });
       const json = await res.json() as {
         error?: string; folderId?: string; folderName?: string; total?: number;
-        photos?: { id: string; name: string; proxyUrl: string; mimeType: string; createdTime: string }[];
+        photos?: Photo[];
       };
       if (!res.ok) {
         if (json.error === "not_connected" || String(json.error).includes("drive_tokens"))
           throw new Error("Connect Google Drive first from /api/drive/auth, then scan again.");
         throw new Error(json.error || "Drive scan failed");
       }
-      const drivePhotos: Photo[] = (json.photos || []).map((photo) => ({
-        _id: `drive_${photo.id}`, url: photo.proxyUrl,
-        thumbnailUrl: photo.proxyUrl,
-        name: photo.name,
-        facesCount: 0, tags: ["drive"], indexed: false, savedAt: photo.createdTime || new Date().toISOString(),
-      }));
+      const drivePhotos: Photo[] = json.photos || [];
       const merged = new Map<string, Photo>();
       [...photos, ...drivePhotos].forEach((photo) => merged.set(photo._id, photo));
       const updatedPhotos = Array.from(merged.values());
-      await savePhotos(id, updatedPhotos);
       const updatedEvent: Event = {
         ...event, driveFolderUrl: driveUrl.trim(),
         driveFolderId: json.folderId || event.driveFolderId || "",
         driveFolderName: json.folderName || event.driveFolderName || "Google Drive Folder",
         driveSyncedAt: new Date().toISOString(), photoCount: updatedPhotos.length,
       };
-      await api.patch(`/events/${id}`, updatedEvent);
       setPhotos(updatedPhotos); setEvent(updatedEvent); pendingRef.current = [];
-      toast.success(`Drive synced: ${drivePhotos.length} photo${drivePhotos.length === 1 ? "" : "s"} ready`);
+      toast.success(`Drive imported: ${drivePhotos.length} photo${drivePhotos.length === 1 ? "" : "s"} saved`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Drive sync failed");
     } finally { setSyncingDrive(false); }
