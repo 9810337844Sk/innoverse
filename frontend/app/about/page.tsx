@@ -11,10 +11,10 @@ import Image from "next/image";
 import Footer from "@/components/landing/Footer";
 
 const stats = [
-  { value: "50,000+", label: "Photos Processed",      icon: "📸", accent: "#FF2D78" },
-  { value: "1,200+",  label: "Events Covered",         icon: "🎉", accent: "#A855F7" },
-  { value: "8,500+",  label: "Happy Clients",          icon: "😊", accent: "#0D9488" },
-  { value: "99.2%",   label: "Recognition Accuracy",   icon: "🎯", accent: "#F59E0B" },
+  { value: "500+", label: "Photos Processed",      icon: "📸", accent: "#FF2D78" },
+  { value: "10+",  label: "Events Created",         icon: "🎉", accent: "#A855F7" },
+  { value: "90+",  label: "Events Covered",         icon: "😊", accent: "#0D9488" },
+  { value: "90%",  label: "Recognition Accuracy",   icon: "🎯", accent: "#F59E0B" },
 ];
 
 const teamMembers = [
@@ -264,7 +264,7 @@ export default function AboutPage() {
                 <span className="text-slate-300">•</span>
                 <div className="flex items-center gap-1.5 text-sm text-slate-500">
                   <Award size={15} style={{ color: "#A855F7" }} />
-                  Founded 2024
+                  Founded 2026
                 </div>
               </div>
             </div>

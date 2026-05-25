@@ -200,7 +200,7 @@ export default function Hero() {
               {[
                 { icon: <Zap size={12} />,    text: "3s results",     color: "#FF6B61", bg: "rgba(255,107,97,0.1)",   border: "rgba(255,107,97,0.25)" },
                 { icon: <Shield size={12} />, text: "Privacy-first",  color: "#2DD4BF", bg: "rgba(45,212,191,0.08)",  border: "rgba(45,212,191,0.2)" },
-                { icon: <Star size={12} />,   text: "99.2% accuracy", color: "#A992FF", bg: "rgba(169,146,255,0.1)",  border: "rgba(169,146,255,0.25)" },
+                { icon: <Star size={12} />,   text: "90% accuracy", color: "#A992FF", bg: "rgba(169,146,255,0.1)",  border: "rgba(169,146,255,0.25)" },
                 { icon: <CheckCircle size={12} />, text: "Group photos", color: "#2DD4BF", bg: "rgba(45,212,191,0.08)", border: "rgba(45,212,191,0.2)" },
               ].map((b, i) => (
                 <motion.div
@@ -222,9 +222,9 @@ export default function Hero() {
               className="grid grid-cols-3 gap-3 w-full max-w-xs sm:max-w-sm"
             >
               {[
-                { value: "2.3s", label: "Avg search" },
-                { value: "50K+", label: "Events" },
-                { value: "2M+",  label: "Photos found" },
+                { value: "15+", label: "Events" },
+                { value: "500+", label: "Photos" },
+                { value: "90%", label: "Accuracy" },
               ].map((s, i) => (
                 <div
                   key={i}

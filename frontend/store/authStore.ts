@@ -2,13 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import Cookies from "js-cookie";
 
-type User = { _id: string; name: string; email: string; role: string };
+type User = { _id: string; name: string; email: string; role: string; avatar?: string | null };
 
 interface AuthState {
   user: User | null;
   token: string | null;
   _hasHydrated: boolean;
   setAuth: (user: User, token: string) => void;
+  updateUser: (changes: Partial<User>) => void;
   logout: () => void;
   setHasHydrated: (v: boolean) => void;
 }
@@ -24,6 +25,9 @@ export const useAuthStore = create<AuthState>()(
         Cookies.set("token", token, { expires: 7, secure, sameSite: "lax" });
         set({ user, token });
       },
+      updateUser: (changes) => set((state) => ({
+        user: state.user ? { ...state.user, ...changes } : null,
+      })),
       logout: () => {
         Cookies.remove("token");
         set({ user: null, token: null });

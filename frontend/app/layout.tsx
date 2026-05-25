@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "PhotoFly - AI Photo Recognition for Events",
   description: "Upload your selfie and instantly find all your photos from any event using AI face recognition.",
   keywords: "photo recognition, face recognition, event photos, AI photos",
-  icons: { icon: "/logo.jpg" },
+  icons: { icon: "/camera-icon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

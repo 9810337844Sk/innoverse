@@ -4,13 +4,14 @@ import { useState } from "react";
 import {
   User, Mail, Lock, Bell, Shield, Palette,
   Save, Eye, EyeOff, CheckCircle, Camera,
-  Smartphone, Globe, Trash2, AlertTriangle,
+  Smartphone, Globe, AlertTriangle, Clock3,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useAuthStore } from "@/store/authStore";
-import { useRouter } from "next/navigation";
+import { DashboardTheme, useThemeStore } from "@/store/themeStore";
+import Image from "next/image";
 
 type Section = "profile" | "password" | "notifications" | "appearance" | "danger";
 
@@ -63,8 +64,7 @@ function Toggle({ checked, onChange, label, sub }: {
 }
 
 export default function SettingsPage() {
-  const { user, logout } = useAuthStore();
-  const router = useRouter();
+  const { user, updateUser } = useAuthStore();
   const [active, setActive] = useState<Section>("profile");
 
   // Profile form
@@ -76,6 +76,7 @@ export default function SettingsPage() {
     website: "",
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Password form
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
@@ -92,8 +93,8 @@ export default function SettingsPage() {
   });
 
   // Appearance
-  const [theme, setTheme] = useState<"light" | "system">("light");
-  const [language, setLanguage] = useState("en");
+  const theme = useThemeStore(s => s.theme);
+  const setTheme = useThemeStore(s => s.setTheme);
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +102,24 @@ export default function SettingsPage() {
     await new Promise(r => setTimeout(r, 800));
     setSavingProfile(false);
     toast.success("Profile updated!");
+  };
+
+  const uploadAvatar = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const response = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+      const result = await response.json() as { avatar?: string; message?: string };
+      if (!response.ok || !result.avatar) throw new Error(result.message || "Upload failed");
+      updateUser({ avatar: result.avatar });
+      toast.success("Profile photo updated!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Profile photo upload failed");
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const savePassword = async (e: React.FormEvent) => {
@@ -120,12 +139,11 @@ export default function SettingsPage() {
     toast.success("Password changed!");
   };
 
-  const handleDeleteAccount = () => {
-    if (!confirm("Are you sure? This will permanently delete your account and all your events and photos. This cannot be undone.")) return;
-    logout();
-    router.push("/");
-    toast.success("Account deleted");
-  };
+  const themes: { id: DashboardTheme; label: string; preview: string }[] = [
+    { id: "normal", label: "Normal", preview: "#FFFFFF" },
+    { id: "dark", label: "Dark", preview: "#111827" },
+    { id: "green", label: "Green", preview: "#DCFCE7" },
+  ];
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -171,14 +189,29 @@ export default function SettingsPage() {
                 {/* Avatar */}
                 <div className="flex items-center gap-5 mb-6">
                   <div className="relative">
-                    <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-black text-2xl"
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center text-white font-black text-2xl"
                       style={{ background: "linear-gradient(135deg,#FF2D78,#A855F7)" }}>
-                      {user?.name?.[0] ?? "U"}
+                      {user?.avatar ? (
+                        <Image src={user.avatar} alt={`${user.name} profile`} width={80} height={80} className="h-full w-full object-cover" />
+                      ) : (
+                        user?.name?.[0] ?? "U"
+                      )}
                     </div>
-                    <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl flex items-center justify-center bg-white"
+                    <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl flex items-center justify-center bg-white cursor-pointer"
                       style={{ border: "1.5px solid rgba(255,45,120,0.2)", boxShadow: "0 2px 8px rgba(255,45,120,0.1)" }}>
-                      <Camera size={13} style={{ color: "#FF2D78" }} />
-                    </button>
+                      {uploadingAvatar ? (
+                        <span className="w-3 h-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                      ) : (
+                        <Camera size={13} style={{ color: "#FF2D78" }} />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingAvatar}
+                        onChange={e => void uploadAvatar(e.target.files?.[0])}
+                      />
+                    </label>
                   </div>
                   <div>
                     <div className="font-semibold text-deep">{user?.name}</div>
@@ -189,6 +222,7 @@ export default function SettingsPage() {
                         {user?.role}
                       </span>
                     </div>
+                    <p className="text-[11px] text-slate-400 mt-2">Upload a profile photo (max 5 MB)</p>
                   </div>
                 </div>
 
@@ -330,46 +364,25 @@ export default function SettingsPage() {
                 {/* Theme */}
                 <div className="mb-6">
                   <label className="block text-xs font-semibold text-deep/60 mb-3 uppercase tracking-wider">Theme</label>
-                  <div className="grid grid-cols-2 gap-3 max-w-xs">
-                    {(["light","system"] as const).map(t => (
+                  <div className="grid grid-cols-3 gap-3 max-w-md">
+                    {themes.map(t => (
                       <button
-                        key={t}
-                        onClick={() => setTheme(t)}
+                        key={t.id}
+                        onClick={() => setTheme(t.id)}
                         className="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all"
-                        style={theme === t
+                        style={theme === t.id
                           ? { background: "rgba(255,45,120,0.07)", border: "2px solid #FF2D78" }
                           : { background: "#F8FAFC", border: "2px solid transparent" }}
                       >
                         <div className="w-10 h-7 rounded-lg"
-                          style={{ background: t === "light" ? "#FFFFFF" : "linear-gradient(135deg,#FFFFFF 50%,#1e293b 50%)", border: "1px solid #E2E8F0" }} />
-                        <span className="text-xs font-medium capitalize text-deep">{t}</span>
-                        {theme === t && <CheckCircle size={13} style={{ color: "#FF2D78" }} />}
+                          style={{ background: t.preview, border: "1px solid #E2E8F0" }} />
+                        <span className="text-xs font-medium text-deep">{t.label}</span>
+                        {theme === t.id && <CheckCircle size={13} style={{ color: "#FF2D78" }} />}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <Divider />
-
-                {/* Language */}
-                <div>
-                  <label className="block text-xs font-semibold text-deep/60 mb-3 uppercase tracking-wider">Language</label>
-                  <select
-                    value={language}
-                    onChange={e => setLanguage(e.target.value)}
-                    className="input-field max-w-xs"
-                  >
-                    <option value="en">English</option>
-                    <option value="ne">नेपाली (Nepali)</option>
-                    <option value="hi">हिन्दी (Hindi)</option>
-                  </select>
-                </div>
-
-                <div className="flex justify-end mt-6">
-                  <Button onClick={() => toast.success("Appearance saved!")}>
-                    <Save size={14} /> Save
-                  </Button>
-                </div>
               </SectionCard>
             </motion.div>
           )}
@@ -396,10 +409,10 @@ export default function SettingsPage() {
                     style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
                     <div>
                       <div className="font-medium text-sm text-deep">Export your data</div>
-                      <div className="text-xs text-slate-400 mt-0.5">Download all your events and photos as a ZIP</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Coming soon - download all your events and photos as a ZIP</div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => toast.success("Export started — check your email")}>
-                      Export
+                    <Button variant="ghost" size="sm" onClick={() => toast("Export your data is coming soon")}>
+                      <Clock3 size={13} /> Coming soon
                     </Button>
                   </div>
 
@@ -409,11 +422,11 @@ export default function SettingsPage() {
                     <div>
                       <div className="font-medium text-sm text-red-600">Delete account</div>
                       <div className="text-xs text-slate-400 mt-0.5">
-                        Permanently delete your account, all events and photos
+                        Coming soon - permanently delete your account, events and photos
                       </div>
                     </div>
-                    <Button variant="danger" size="sm" onClick={handleDeleteAccount}>
-                      <Trash2 size={13} /> Delete
+                    <Button variant="ghost" size="sm" onClick={() => toast("Delete account is coming soon")}>
+                      <Clock3 size={13} /> Coming soon
                     </Button>
                   </div>
                 </div>

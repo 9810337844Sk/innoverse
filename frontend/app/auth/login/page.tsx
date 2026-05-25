@@ -25,6 +25,8 @@ export default function LoginPage() {
   const _hasHydrated = useAuthStore(s => s._hasHydrated);
   const [form, setForm]       = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const passwordResetText = `Hello PhotoFly Support, I need to reset my password.${form.email ? ` My account email is ${form.email}.` : ""} Please help me recover my account.`;
+  const passwordResetUrl = `https://wa.me/9779823415625?text=${encodeURIComponent(passwordResetText)}`;
 
   // If already logged in → redirect to dashboard
   useEffect(() => {
@@ -209,11 +211,13 @@ export default function LoginPage() {
               />
 
               <div className="flex justify-end -mt-1">
-                <Link href="/auth/forgot-password"
+                <a href={passwordResetUrl}
+                  target="_blank"
+                  rel="noreferrer"
                   className="text-xs font-semibold hover:underline transition-colors"
                   style={{ color: "#FF2D78" }}>
                   Forgot password?
-                </Link>
+                </a>
               </div>
 
               <Button type="submit" fullWidth loading={loading} size="lg">

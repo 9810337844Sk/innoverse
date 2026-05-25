@@ -275,6 +275,49 @@ body::selection {
   background: linear-gradient(135deg, #FAFBFC 0%, #FFFFFF 50%, #FFF5F8 100%);
 }
 
+/* Dashboard appearance themes */
+.dashboard-shell {
+  --dashboard-bg: #F8FAFC;
+  --dashboard-card: #FFFFFF;
+  --dashboard-text: #1A0A12;
+  --dashboard-muted: #64748B;
+  background: var(--dashboard-bg);
+  color: var(--dashboard-text);
+  transition: background 180ms ease, color 180ms ease;
+}
+.dashboard-theme-dark {
+  --dashboard-bg: #0F172A;
+  --dashboard-card: #172033;
+  --dashboard-text: #F8FAFC;
+  --dashboard-muted: #A8B4C7;
+}
+.dashboard-theme-green {
+  --dashboard-bg: #F0FDF4;
+  --dashboard-card: #FFFFFF;
+  --dashboard-text: #052E16;
+  --dashboard-muted: #4B7660;
+}
+.dashboard-main {
+  background: var(--dashboard-bg);
+}
+.dashboard-shell aside,
+.dashboard-shell header,
+.dashboard-shell .bg-white {
+  background-color: var(--dashboard-card) !important;
+}
+.dashboard-shell .text-deep {
+  color: var(--dashboard-text) !important;
+}
+.dashboard-shell .text-slate-500,
+.dashboard-shell .text-slate-400 {
+  color: var(--dashboard-muted) !important;
+}
+.dashboard-theme-dark .input-field {
+  background: #111827;
+  border-color: rgba(148,163,184,0.28);
+  color: #F8FAFC;
+}
+
 /* ── Animations ────────────────────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }

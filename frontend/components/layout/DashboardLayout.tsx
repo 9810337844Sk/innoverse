@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,6 +9,7 @@ import {
   Bell,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { useThemeStore } from "@/store/themeStore";
 import Image from "next/image";
 
 const navItems = [
@@ -87,10 +88,14 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           style={{ background: "rgba(255,45,120,0.04)", border: "1px solid rgba(255,45,120,0.1)" }}>
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+              className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #FF2D78, #A855F7)", boxShadow: "0 2px 8px rgba(255,45,120,0.25)" }}
             >
-              {user?.name?.[0]?.toUpperCase() || "U"}
+              {user?.avatar ? (
+                <Image src={user.avatar} alt={`${user.name} profile`} width={36} height={36} className="h-full w-full object-cover" />
+              ) : (
+                user?.name?.[0]?.toUpperCase() || "U"
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-deep truncate leading-tight">{user?.name}</div>
@@ -114,15 +119,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
   const { user, logout } = useAuthStore();
+  const theme = useThemeStore(s => s.theme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => { logout(); router.push("/"); };
+
+  useEffect(() => {
+    void useThemeStore.persist.rehydrate();
+  }, []);
 
   // Page title from pathname
   const pageTitle = navItems.find(n => n.href === pathname || (n.href !== "/dashboard" && pathname.startsWith(n.href)))?.label ?? "Dashboard";
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F8FAFC" }}>
+    <div className={`dashboard-shell dashboard-theme-${theme} flex h-screen overflow-hidden`}>
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-white"
         style={{ borderRight: "1px solid rgba(255,45,120,0.08)", boxShadow: "2px 0 16px rgba(255,45,120,0.04)" }}>
@@ -186,15 +196,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <Bell size={16} />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
             </button>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 cursor-pointer"
+            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center text-white text-xs font-bold flex-shrink-0 cursor-pointer"
               style={{ background: "linear-gradient(135deg, #FF2D78, #A855F7)" }}
               title={user?.name}>
-              {user?.name?.[0]?.toUpperCase() || "U"}
+              {user?.avatar ? (
+                <Image src={user.avatar} alt={`${user.name} profile`} width={32} height={32} className="h-full w-full object-cover" />
+              ) : (
+                user?.name?.[0]?.toUpperCase() || "U"
+              )}
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-5 sm:p-6" style={{ background: "#F8FAFC" }}>
+        <main className="dashboard-main flex-1 overflow-y-auto p-5 sm:p-6">
           {children}
         </main>
       </div>

@@ -28,7 +28,8 @@ export { cloudinary };
 export async function uploadToCloudinary(
   buffer: Buffer,
   publicId: string,
-  folder: string
+  folder: string,
+  options: { overwrite?: boolean } = {}
 ): Promise<{ url: string; thumbnailUrl: string; publicId: string }> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -36,7 +37,8 @@ export async function uploadToCloudinary(
         public_id: publicId,
         folder,
         resource_type: "image",
-        overwrite: false,
+        overwrite: options.overwrite ?? false,
+        invalidate: options.overwrite ?? false,
         // Auto-quality + format for delivery
         transformation: [{ quality: "auto", fetch_format: "auto" }],
         // Generate an eager thumbnail at 400×400

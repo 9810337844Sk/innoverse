@@ -40,12 +40,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Your account has been suspended" }, { status: 403 });
     }
 
+    const { data: profile } = await supabase
+      .from("users")
+      .select("avatar")
+      .eq("id", user.id)
+      .maybeSingle();
+
     const safeUser = {
       _id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       plan: user.plan,
+      avatar: profile?.avatar ?? null,
     };
 
     const token = Buffer.from(

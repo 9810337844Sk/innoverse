@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
       email: newUser.email,
       role: newUser.role,
       plan: newUser.plan,
+      avatar: null,
     };
 
     const token = Buffer.from(

@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
-import { Check, Clock, ArrowRight } from "lucide-react";
+import { Check, Clock, Camera, Zap, Building2 } from "lucide-react";
 import Link from "next/link";
 
 const plans = [
@@ -21,7 +21,7 @@ const plans = [
     cta: "Get Started Free",
     href: "/auth/register",
     highlight: false,
-    emoji: "🌱",
+    icon: <Camera size={21} />,
     accent: "#A992FF",
     accentBg: "rgba(169,146,255,0.08)",
     accentBorder: "rgba(169,146,255,0.2)",
@@ -45,7 +45,7 @@ const plans = [
     cta: "Coming Soon",
     href: "",
     highlight: true,
-    emoji: "⚡",
+    icon: <Zap size={21} />,
     accent: "#FF6B61",
     accentBg: "rgba(255,107,97,0.1)",
     accentBorder: "rgba(255,107,97,0.3)",
@@ -69,7 +69,7 @@ const plans = [
     cta: "Coming Soon",
     href: "",
     highlight: false,
-    emoji: "🏢",
+    icon: <Building2 size={21} />,
     accent: "#2DD4BF",
     accentBg: "rgba(45,212,191,0.08)",
     accentBorder: "rgba(45,212,191,0.2)",
@@ -178,7 +178,7 @@ export default function Pricing() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 text-lg"
                   style={{ background: p.accentBg, border: `1px solid ${p.accentBorder}` }}
                 >
-                  {p.emoji}
+                  <span style={{ color: p.accent }}>{p.icon}</span>
                 </div>
                 <h3 className="font-bold text-xl mb-1 text-deep">{p.name}</h3>
                 <p className="text-slate-500 text-sm mb-4">{p.desc}</p>
