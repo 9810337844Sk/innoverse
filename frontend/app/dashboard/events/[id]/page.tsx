@@ -95,7 +95,7 @@ export default function EventDetailPage() {
     }
     setUploading(false);
     if (justUploaded.length) toast.success(`✅ ${justUploaded.length} photo${justUploaded.length > 1 ? "s" : ""} uploaded!`);
-  }, [event, id]);
+  }, [event, id, token]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop, accept: { "image/*": [] }, multiple: true,

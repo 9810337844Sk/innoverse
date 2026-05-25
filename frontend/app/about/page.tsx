@@ -4,9 +4,10 @@ import { useInView } from "react-intersection-observer";
 import {
   Camera, Users, Zap, Shield, Heart, Award,
   MapPin, Mail, Phone, ArrowRight, Sparkles,
-  Github, Linkedin, Code2, Brain, Palette, TrendingUp,
+  Code2, Brain, Palette, TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import Footer from "@/components/landing/Footer";
 
 const stats = [
@@ -16,58 +17,71 @@ const stats = [
   { value: "99.2%",   label: "Recognition Accuracy",   icon: "🎯", accent: "#F59E0B" },
 ];
 
-const team = [
+const teamMembers = [
   {
     name: "Sachin Kushwaha",
-    role: "Founder & Full-Stack Engineer",
-    bio: "Architected PhotoFly from the ground up — from AI pipelines to pixel-perfect UI. Obsessed with making complex tech feel effortless.",
+    role: "Backend Developer",
+    bio: "Builds the server architecture, APIs, authentication flow, and backend services that keep PhotoFly fast, secure, and reliable.",
     avatar: "SK",
+    image: "",
     gradient: "linear-gradient(135deg, #FF2D78, #FF6B9D)",
-    skills: ["Next.js", "Python AI", "Supabase"],
+    skills: ["Backend", "APIs", "Security"],
     location: "Kathmandu, Nepal",
-    social: { github: "https://github.com", linkedin: "https://linkedin.com" },
-    badge: "🚀 Founder",
+    badge: "Backend",
     badgeColor: "#FF2D78",
     badgeBg: "rgba(255,45,120,0.1)",
   },
   {
-    name: "Priya Thapa",
-    role: "AI & Computer Vision Lead",
-    bio: "Trains and fine-tunes the face recognition models that power instant photo discovery. Turned research papers into production-grade systems.",
-    avatar: "PT",
-    gradient: "linear-gradient(135deg, #A855F7, #7C3AED)",
-    skills: ["FaceNet", "FAISS", "TensorFlow"],
-    location: "Pokhara, Nepal",
-    social: { github: "https://github.com", linkedin: "https://linkedin.com" },
-    badge: "🧠 AI Lead",
-    badgeColor: "#A855F7",
-    badgeBg: "rgba(168,85,247,0.1)",
-  },
-  {
-    name: "Rohan Karki",
-    role: "Product Designer",
-    bio: "Designs every interaction with empathy — from the photographer's dashboard to the guest's photo discovery flow. Beauty meets function.",
-    avatar: "RK",
+    name: "Nirjal Thapa",
+    role: "Frontend Developer",
+    bio: "Creates the user-facing experience across landing pages, dashboard screens, event pages, and photo search flows.",
+    avatar: "NT",
+    image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj2dkLpGEtrB86ChM49UWA3Uojqgf6Id-YDi8C2tqSHFAx55TKPxL9BoreF7hOf1DttqvBGgWhjeEiPmSy9zeQ91igZVjyO5C6DaM3trizqw_EIG0COwr3HGcR29YWIUi1yE4TTjV01LdVwZE8WrJE6BFDvlMJn1e-NQuU8-7tb3UPKhTv2znSlgntje_SA/s1600/Gemini_Generated_Image_ogslfaogslfaogsl.png",
     gradient: "linear-gradient(135deg, #0D9488, #14B8A6)",
-    skills: ["Figma", "Motion Design", "UX Research"],
-    location: "Lalitpur, Nepal",
-    social: { github: "https://github.com", linkedin: "https://linkedin.com" },
-    badge: "🎨 Design",
+    skills: ["Frontend", "React", "Next.js"],
+    location: "Nepal",
+    badge: "Frontend",
     badgeColor: "#0D9488",
     badgeBg: "rgba(13,148,136,0.1)",
   },
   {
-    name: "Sita Rai",
-    role: "Head of Growth & Operations",
-    bio: "Connects PhotoFly with photographers across Nepal. Turns user feedback into product improvements and builds partnerships that matter.",
-    avatar: "SR",
+    name: "Anusha Ghimire",
+    role: "UI/UX Designer",
+    bio: "Shapes the visual language, page layouts, and interaction details so PhotoFly feels polished and easy to use.",
+    avatar: "AG",
+    image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgcau_RcY2hJFe08mhaLqLp_91fCGUcl2IZ3l32vzZDkN7KVj3DWIucgR2-wRHF_VtyHemNXj8qAsxoTPOGCzHVIaQOakPK_CQu2FMXMVKCWBYK8iXMwcYx-TZmUFR8mBMTXwYnE2qDZYseCDtxmONS74fINXrMqcCiKk1JfYH8txUUZdRxokZUnIUJKXMH/s1600/Gemini_Generated_Image_3dbwg73dbwg73dbw.png",
+    gradient: "linear-gradient(135deg, #2563EB, #06B6D4)",
+    skills: ["UI/UX", "Figma", "Design"],
+    location: "Nepal",
+    badge: "Design",
+    badgeColor: "#2563EB",
+    badgeBg: "rgba(37,99,235,0.1)",
+  },
+  {
+    name: "Aabaran Dhungana",
+    role: "Database Designer",
+    bio: "Designs the data model, database structure, and storage workflows behind users, events, photos, and uploads.",
+    avatar: "AD",
+    image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh9Ip38ZLZ8Zyum_tsmy1V816-YWpWyLWHGcLZGKMxmdcOtKz0w2wDSQmca7GPmMTUb4JbvQFHxvpdm61seQFZLAtwE8YT68STV0mR_xfT-cq53EVktFwiWMlmRAvMLc8Js51BSSTcQg3LB_3StYQrPcVPsYeRdjVuzpkriASDRNNFx2NRd72WaCzS8j1g1/s1600/Aabaran.jpeg",
     gradient: "linear-gradient(135deg, #F59E0B, #EF4444)",
-    skills: ["Growth", "Partnerships", "Analytics"],
-    location: "Bhaktapur, Nepal",
-    social: { github: "https://github.com", linkedin: "https://linkedin.com" },
-    badge: "📈 Growth",
+    skills: ["Database", "Schema", "Supabase"],
+    location: "Nepal",
+    badge: "Database",
     badgeColor: "#F59E0B",
     badgeBg: "rgba(245,158,11,0.1)",
+  },
+  {
+    name: "Abinash Giri",
+    role: "AI Service Engine Developer",
+    bio: "Develops the AI service engine and face matching logic that powers fast photo discovery for event guests.",
+    avatar: "AG",
+    image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg3KeC3y0DELeENYez_bM2-MaDpNWt1FU0zXULGaPsjh9uCrEF5jffvNV-GPuuEBOIM2Brn6bIRSN4gp1TL0a_GuuiCN-1H1SWpT-dd5T8lKbAA9QVQohSooVe94EzDKygPiE1wGGIsffEBim6EEpnOQ08Pqzn-n325EZoFeHwFqt52gxIl1T0AD9t0WBAn/s1600/Gemini_Generated_Image_374dut374dut374d.png",
+    gradient: "linear-gradient(135deg, #A855F7, #7C3AED)",
+    skills: ["AI Service", "Face Search", "Python"],
+    location: "Nepal",
+    badge: "AI Engine",
+    badgeColor: "#A855F7",
+    badgeBg: "rgba(168,85,247,0.1)",
   },
 ];
 
@@ -356,6 +370,19 @@ export default function AboutPage() {
           {/* Section header */}
           <FadeIn>
             <div className="text-center mb-20">
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-black uppercase tracking-[0.22em] text-white"
+                style={{
+                  background: "linear-gradient(135deg, #1A0A12 0%, #FF2D78 55%, #A855F7 100%)",
+                  boxShadow: "0 14px 38px rgba(255,45,120,0.28)",
+                }}
+              >
+                <Sparkles size={15} /> Team Premium
+              </motion.div>
               <motion.span
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
@@ -376,8 +403,8 @@ export default function AboutPage() {
           </FadeIn>
 
           {/* Team grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {team.map((member, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            {teamMembers.map((member, i) => (
               <FadeIn key={i} delay={i * 0.1}>
                 <motion.div
                   whileHover={{ y: -8 }}
@@ -396,30 +423,35 @@ export default function AboutPage() {
                   <div className="h-1.5 w-full flex-shrink-0" style={{ background: member.gradient }} />
 
                   {/* Card body */}
-                  <div className="p-6 flex flex-col flex-1">
-                    {/* Avatar + badge row */}
-                    <div className="flex items-start justify-between mb-5">
-                      <div className="relative">
-                        {/* Outer ring */}
-                        <div className="absolute -inset-1 rounded-2xl opacity-30 group-hover:opacity-60 transition-opacity"
-                          style={{ background: member.gradient }} />
-                        <div
-                          className="relative w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-xl"
-                          style={{ background: member.gradient, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}
-                        >
-                          {member.avatar}
-                        </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    {/* Circular member photo */}
+                    <div className="relative mx-auto -mt-1 mb-5 h-28 w-28 rounded-full p-1.5"
+                      style={{ background: member.gradient, boxShadow: `0 14px 34px ${member.badgeColor}30` }}>
+                      <div className="h-full w-full overflow-hidden rounded-full bg-white p-1">
+                        {member.image ? (
+                          <Image
+                            src={member.image}
+                            alt={member.name}
+                            width={96}
+                            height={96}
+                            className="h-full w-full rounded-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center rounded-full text-white text-3xl font-black"
+                            style={{ background: member.gradient }}>
+                            {member.avatar}
+                          </div>
+                        )}
                       </div>
-                      {/* Role badge */}
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-xl"
-                        style={{ color: member.badgeColor, background: member.badgeBg }}>
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-bold px-2.5 py-1 rounded-xl backdrop-blur-md"
+                        style={{ color: member.badgeColor, background: "rgba(255,255,255,0.95)", boxShadow: "0 6px 16px rgba(15,23,42,0.08)" }}>
                         {member.badge}
                       </span>
                     </div>
 
                     {/* Name & role */}
-                    <h3 className="font-black text-lg text-deep mb-0.5 leading-tight">{member.name}</h3>
-                    <p className="text-xs font-bold uppercase tracking-wider mb-3"
+                    <h3 className="font-black text-lg text-deep mb-0.5 leading-tight text-center">{member.name}</h3>
+                    <p className="text-xs font-bold uppercase tracking-wider mb-3 text-center"
                       style={{ color: member.badgeColor }}>
                       {member.role}
                     </p>
@@ -448,32 +480,12 @@ export default function AboutPage() {
                         <MapPin size={11} style={{ color: member.badgeColor }} />
                         {member.location}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <motion.a
-                          href={member.social.github}
-                          target="_blank" rel="noreferrer"
-                          whileHover={{ scale: 1.15, y: -1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                          style={{ background: "rgba(15,23,42,0.06)", color: "#334155" }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(15,23,42,0.12)"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(15,23,42,0.06)"; }}
-                        >
-                          <Github size={13} />
-                        </motion.a>
-                        <motion.a
-                          href={member.social.linkedin}
-                          target="_blank" rel="noreferrer"
-                          whileHover={{ scale: 1.15, y: -1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                          style={{ background: `${member.badgeColor}12`, color: member.badgeColor }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${member.badgeColor}22`; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${member.badgeColor}12`; }}
-                        >
-                          <Linkedin size={13} />
-                        </motion.a>
-                      </div>
+                      <span
+                        className="text-[10px] font-black uppercase tracking-[0.16em] px-2.5 py-1 rounded-full"
+                        style={{ color: member.badgeColor, background: member.badgeBg }}
+                      >
+                        Premium
+                      </span>
                     </div>
                   </div>
                 </motion.div>
