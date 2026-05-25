@@ -1,14 +1,8 @@
-import { NextResponse } from "next/server";
-import { unlink } from "fs/promises";
-import path from "path";
+import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
-export async function POST() {
-  try {
-    await unlink(path.join(process.cwd(), "public", "data", "drive_tokens.json"));
-  } catch { /* already gone */ }
-  try {
-    await unlink(path.join("/tmp", "drive_tokens.json"));
-  } catch { /* already gone */ }
+export async function POST(req: NextRequest) {
+  if (!getUserFromRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const res = NextResponse.json({ ok: true });
   res.cookies.delete("drive_tokens");

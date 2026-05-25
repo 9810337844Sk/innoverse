@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createVerificationToken, generateOtp, hashOtp } from "@/lib/emailVerification";
 import { sendOtpEmail } from "@/lib/mailer";
+import { passwordValidationError } from "@/lib/passwordValidation";
 
 export const runtime = "nodejs";
 
@@ -12,8 +13,9 @@ export async function POST(req: NextRequest) {
     if (!name || !email || !password) {
       return NextResponse.json({ message: "Name, email and password are required" }, { status: 400 });
     }
-    if (password.length < 8) {
-      return NextResponse.json({ message: "Password must be at least 8 characters" }, { status: 400 });
+    const validationError = passwordValidationError(password, email);
+    if (validationError) {
+      return NextResponse.json({ message: validationError }, { status: 400 });
     }
 
     const validRoles = ["user", "photographer"];

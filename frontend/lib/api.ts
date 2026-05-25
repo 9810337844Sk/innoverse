@@ -7,15 +7,7 @@
 const delay = (ms = 80) => new Promise(r => setTimeout(r, ms));
 
 function getAuthHeaders(): HeadersInit {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem("auth-storage");
-    const token = raw ? JSON.parse(raw)?.state?.token : "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
+  return {};
 }
 
 async function request(method: string, url: string, data?: unknown): Promise<{ data: unknown }> {

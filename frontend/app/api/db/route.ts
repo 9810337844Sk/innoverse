@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
 const DATA_DIR = path.join(process.cwd(), "public", "data");
 
@@ -28,6 +29,8 @@ async function writeJSON(file: string, data: unknown) {
 
 // GET /api/db?collection=events|photos&eventId=xxx
 export async function GET(req: NextRequest) {
+  if (!getUserFromRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const collection = searchParams.get("collection");
   const eventId    = searchParams.get("eventId");
@@ -47,6 +50,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/db  body: { collection, action, data }
 export async function POST(req: NextRequest) {
+  if (!getUserFromRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json() as {
     collection: string;
     action: "set" | "push" | "delete";

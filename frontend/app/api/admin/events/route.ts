@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { DbEvent } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const user = getUserFromRequest(req);
+    if (!user || user.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const { data: events, error } = await supabase
       .from("events")
       .select("*")
@@ -42,6 +46,9 @@ export async function GET() {
 // PATCH /api/admin/events — toggle isActive
 export async function PATCH(req: NextRequest) {
   try {
+    const user = getUserFromRequest(req);
+    if (!user || user.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const { id, isActive } = await req.json();
     const { error } = await supabase.from("events").update({ is_active: isActive }).eq("id", id);
     if (error) throw error;

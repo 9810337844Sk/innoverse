@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const user = getUserFromRequest(req);
+    if (!user || user.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const { data, error, count } = await supabase
       .from("users")
       .select("id, name, email, role, banned, plan, created_at", { count: "exact" })

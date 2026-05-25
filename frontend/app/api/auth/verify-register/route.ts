@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readVerificationToken, hashOtp } from "@/lib/emailVerification";
+import { createAuthToken, setAuthCookie } from "@/lib/serverAuth";
 import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -53,11 +54,9 @@ export async function POST(req: NextRequest) {
       avatar: null,
     };
 
-    const token = Buffer.from(
-      JSON.stringify({ id: newUser.id, role: newUser.role, exp: Date.now() + 7 * 86400000 })
-    ).toString("base64");
-
-    return NextResponse.json({ user: safeUser, token }, { status: 201 });
+    const response = NextResponse.json({ user: safeUser }, { status: 201 });
+    setAuthCookie(response, createAuthToken(newUser.id, newUser.role), req.nextUrl.protocol === "https:");
+    return response;
   } catch (err) {
     console.error("[verify-register]", err);
     const message = err instanceof Error && err.message.includes("expired")

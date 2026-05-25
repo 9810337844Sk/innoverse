@@ -23,7 +23,7 @@ const teamMembers = [
     role: "Backend Developer",
     bio: "Builds the server architecture, APIs, authentication flow, and backend services that keep PhotoFly fast, secure, and reliable.",
     avatar: "SK",
-    image: "",
+    image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgTcSAUoix_y-ScR6Q9BItjFsj9ZoqQrHNkYjuLKkOHR4KVRU890aTgo-2IYqDAbj7pJIiYwJZEu9h1Bu1n23fEp2WqVcoMKPJJOQH0UXmIAd3rjIHk2YirPgS850WEIE1Aq2D_Lt_fk3hYig1_8-w8Do73hqN3_UkjhtTMKWv_KA6qYDP8tm2NMsruwis/s1600/sachin.png",
     gradient: "linear-gradient(135deg, #FF2D78, #FF6B9D)",
     skills: ["Backend", "APIs", "Security"],
     location: "Kathmandu, Nepal",

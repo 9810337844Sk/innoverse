@@ -17,7 +17,6 @@ import api from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import { getPhotos, savePhotos, pushPhotos, deletePhoto as deletePhotoFromDB, type StoredPhoto } from "@/lib/db";
-import { useAuthStore } from "@/store/authStore";
 
 type Photo = StoredPhoto;
 type Event = {
@@ -42,7 +41,6 @@ export default function EventDetailPage() {
   const [lightbox, setLightbox]     = useState<Photo | null>(null);
   const [filter, setFilter]         = useState<"all"|"indexed"|"pending">("all");
   const pendingRef = useRef<Photo[]>([]);
-  const token = useAuthStore(s => s.token);
 
   useEffect(() => {
     api.get(`/events/${id}`)
@@ -71,7 +69,6 @@ export default function EventDetailPage() {
       try {
         const res  = await fetch("/api/upload", {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: form,
         });
         if (!res.ok) {
@@ -95,7 +92,7 @@ export default function EventDetailPage() {
     }
     setUploading(false);
     if (justUploaded.length) toast.success(`✅ ${justUploaded.length} photo${justUploaded.length > 1 ? "s" : ""} uploaded!`);
-  }, [event, id, token]);
+  }, [event, id]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop, accept: { "image/*": [] }, multiple: true,
@@ -150,7 +147,6 @@ export default function EventDetailPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           eventId: id,

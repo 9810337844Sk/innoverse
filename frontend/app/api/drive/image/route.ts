@@ -5,9 +5,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getDriveClient } from "@/lib/drive";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
 // GET /api/drive/image?fileId=xxx
 export async function GET(req: NextRequest) {
+  if (!getUserFromRequest(req)) return new NextResponse("Unauthorized", { status: 401 });
+
   const fileId = req.nextUrl.searchParams.get("fileId");
   if (!fileId) return new NextResponse("fileId required", { status: 400 });
 

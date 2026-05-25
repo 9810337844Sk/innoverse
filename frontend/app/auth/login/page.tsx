@@ -36,16 +36,12 @@ export default function LoginPage() {
   }, [_hasHydrated, user, router]);
 
   // Clear fields on every mount — prevents browser autofill from persisting
-  useEffect(() => {
-    setForm({ email: "", password: "" });
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/login", form) as { data: { user: { role: string }; token: string } };
-      setAuth(data.user as Parameters<typeof setAuth>[0], data.token);
+      const { data } = await api.post("/auth/login", form) as { data: { user: { role: string } } };
+      setAuth(data.user as Parameters<typeof setAuth>[0]);
       toast.success("Welcome back!");
       setForm({ email: "", password: "" });
       if (data.user.role === "admin") router.push("/admin");
@@ -188,7 +184,7 @@ export default function LoginPage() {
               border: "1px solid rgba(255,45,120,0.12)",
               boxShadow: "0 8px 40px rgba(255,45,120,0.08), 0 2px 8px rgba(0,0,0,0.04)",
             }}>
-            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="on">
               <Input
                 label="Email address"
                 type="email"
@@ -196,7 +192,7 @@ export default function LoginPage() {
                 icon={<Mail size={16} />}
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                autoComplete="new-email"
+                autoComplete="email"
                 required
               />
               <Input
@@ -206,7 +202,7 @@ export default function LoginPage() {
                 icon={<Lock size={16} />}
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
-                autoComplete="new-password"
+                autoComplete="current-password"
                 required
               />
 

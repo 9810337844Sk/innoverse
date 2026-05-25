@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
 // PATCH /api/admin/users/[id]  — ban/unban
 export async function PATCH(
@@ -7,6 +8,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = getUserFromRequest(req);
+    if (!user || user.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const body = await req.json();
     const updates: Record<string, unknown> = {};
     if (body.banned !== undefined) updates.banned = body.banned;
@@ -29,10 +33,13 @@ export async function PATCH(
 
 // DELETE /api/admin/users/[id]
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = getUserFromRequest(req);
+    if (!user || user.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const { error } = await supabase
       .from("users")
       .delete()

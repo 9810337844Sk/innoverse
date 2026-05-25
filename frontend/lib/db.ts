@@ -36,15 +36,7 @@ function normalizeEvent(event: StoredEvent): StoredEvent {
 }
 
 function getAuthHeaders(): HeadersInit {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem("auth-storage");
-    const token = raw ? JSON.parse(raw)?.state?.token : "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
+  return {};
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────

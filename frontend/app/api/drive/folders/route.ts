@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDriveClient } from "@/lib/drive";
+import { getUserFromRequest } from "@/lib/serverAuth";
 
 // GET /api/drive/folders - list all folders in Drive
 export async function GET(req: NextRequest) {
+  const user = getUserFromRequest(req);
+  if (!user || !["photographer", "admin"].includes(user.role)) {
+    return NextResponse.json({ error: "Unauthorized", folders: [] }, { status: 401 });
+  }
+
   try {
     const drive = await getDriveClient(req);
 
@@ -24,4 +30,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: msg, folders: [] }, { status: 500 });
   }
 }
-

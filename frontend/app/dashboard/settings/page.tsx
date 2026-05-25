@@ -12,6 +12,7 @@ import Input from "@/components/ui/Input";
 import { useAuthStore } from "@/store/authStore";
 import { DashboardTheme, useThemeStore } from "@/store/themeStore";
 import Image from "next/image";
+import { passwordValidationError } from "@/lib/passwordValidation";
 
 type Section = "profile" | "password" | "notifications" | "appearance" | "danger";
 
@@ -128,15 +129,27 @@ export default function SettingsPage() {
       toast.error("New passwords don't match");
       return;
     }
-    if (passwords.next.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    const validationError = passwordValidationError(passwords.next, user?.email);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     setSavingPw(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSavingPw(false);
-    setPasswords({ current: "", next: "", confirm: "" });
-    toast.success("Password changed!");
+    try {
+      const response = await fetch("/api/profile/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: passwords.current, newPassword: passwords.next }),
+      });
+      const result = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(result.message || "Password change failed");
+      setPasswords({ current: "", next: "", confirm: "" });
+      toast.success(result.message || "Password changed!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Password change failed");
+    } finally {
+      setSavingPw(false);
+    }
   };
 
   const themes: { id: DashboardTheme; label: string; preview: string }[] = [
@@ -270,7 +283,7 @@ export default function SettingsPage() {
           {/* ── Password ── */}
           {active === "password" && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <SectionCard title="Change Password" desc="Use a strong password of at least 8 characters.">
+              <SectionCard title="Change Password" desc="Use at least 12 characters with uppercase, lowercase, number, and symbol.">
                 <form onSubmit={savePassword} className="space-y-4 max-w-sm">
                   {(["current","next","confirm"] as const).map(field => (
                     <div key={field}>
@@ -287,6 +300,8 @@ export default function SettingsPage() {
                           onChange={e => setPasswords(p => ({ ...p, [field]: e.target.value }))}
                           placeholder="••••••••"
                           className="input-field pl-11 pr-11"
+                          autoComplete={field === "current" ? "current-password" : "new-password"}
+                          minLength={field === "current" ? undefined : 12}
                           required
                         />
                         <button

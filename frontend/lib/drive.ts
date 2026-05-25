@@ -1,6 +1,4 @@
 import { google } from "googleapis";
-import { readFile } from "fs/promises";
-import path from "path";
 import { NextRequest } from "next/server";
 import { getOAuthClient } from "@/lib/drive-auth";
 
@@ -53,26 +51,8 @@ function decodeCookieTokens(value?: string) {
   }
 }
 
-async function readFileTokens() {
-  const candidates = [
-    path.join(process.cwd(), "public", "data", "drive_tokens.json"),
-    path.join(process.cwd(), "frontend", "public", "data", "drive_tokens.json"),
-    path.join("/tmp", "drive_tokens.json"),
-  ];
-
-  for (const filePath of candidates) {
-    try {
-      return JSON.parse(await readFile(filePath, "utf8"));
-    } catch {
-      // Try next path.
-    }
-  }
-
-  return null;
-}
-
 export async function getDriveAuth(req?: NextRequest) {
-  const tokens = decodeCookieTokens(req?.cookies.get("drive_tokens")?.value) || await readFileTokens();
+  const tokens = decodeCookieTokens(req?.cookies.get("drive_tokens")?.value);
   if (!tokens) throw new Error("drive_tokens not found");
 
   const oauth2 = getOAuthClient();
@@ -196,4 +176,3 @@ export async function listDriveImages(req: NextRequest, inputId: string, request
   await scanFolder(folderId, folderName);
   return { folderId, folderName, photos };
 }
-

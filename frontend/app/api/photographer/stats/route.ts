@@ -7,15 +7,16 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const user = getUserFromRequest(req);
+    if (!user || (user.role !== "photographer" && user.role !== "admin")) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
     // Build query — filter by photographer if we know who's logged in
     let query = supabase
       .from("events")
       .select("photo_count, search_count, download_count");
 
-    if (user?.id) {
-      query = query.eq("photographer_id", user.id);
-    }
+    query = query.eq("photographer_id", user.id);
 
     const { data: events, error } = await query;
     if (error) throw error;

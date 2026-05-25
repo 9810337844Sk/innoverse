@@ -63,9 +63,9 @@ function RegisterForm() {
     setLoading(true);
     try {
       const { data } = await api.post("/auth/verify-register", { verificationToken, otp }) as {
-        data: { user: { role: string }; token: string };
+        data: { user: { role: string } };
       };
-      setAuth(data.user as Parameters<typeof setAuth>[0], data.token);
+      setAuth(data.user as Parameters<typeof setAuth>[0]);
       toast.success("Account verified! Welcome to PhotoFly");
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -226,14 +226,14 @@ function RegisterForm() {
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+              <form onSubmit={handleSubmit} className="space-y-5" autoComplete="on">
                 <Input
                   label="Full Name"
                   placeholder="Your full name"
                   icon={<User size={16} />}
                   value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
-                  autoComplete="off"
+                  autoComplete="name"
                   required
                 />
                 <Input
@@ -243,7 +243,7 @@ function RegisterForm() {
                   icon={<Mail size={16} />}
                   value={form.email}
                   onChange={e => setForm({ ...form, email: e.target.value })}
-                  autoComplete="new-email"
+                  autoComplete="email"
                   required
                 />
                 <Input
