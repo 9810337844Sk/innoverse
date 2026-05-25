@@ -40,7 +40,6 @@ export default function DashboardPage() {
       accent: "#FF2D78",
       bg: "rgba(255,45,120,0.08)",
       border: "rgba(255,45,120,0.15)",
-      trend: "+12%",
     },
     {
       icon: <CalendarDays size={18} />,
@@ -49,7 +48,6 @@ export default function DashboardPage() {
       accent: "#A855F7",
       bg: "rgba(168,85,247,0.08)",
       border: "rgba(168,85,247,0.15)",
-      trend: "+3",
     },
     {
       icon: <Search size={18} />,
@@ -58,7 +56,6 @@ export default function DashboardPage() {
       accent: "#0D9488",
       bg: "rgba(13,148,136,0.08)",
       border: "rgba(13,148,136,0.15)",
-      trend: "+28%",
     },
     {
       icon: <Download size={18} />,
@@ -67,7 +64,6 @@ export default function DashboardPage() {
       accent: "#F59E0B",
       bg: "rgba(245,158,11,0.08)",
       border: "rgba(245,158,11,0.15)",
-      trend: "+18%",
     },
   ];
 
@@ -143,15 +139,11 @@ export default function DashboardPage() {
                 boxShadow: `0 2px 16px ${s.bg}`,
               }}
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="mb-4">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: s.bg, border: `1px solid ${s.border}` }}>
                   <span style={{ color: s.accent }}>{s.icon}</span>
                 </div>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: s.bg, color: s.accent }}>
-                  {s.trend}
-                </span>
               </div>
               <div className="font-black text-2xl mb-0.5 stat-number text-deep">{s.value.toLocaleString()}</div>
               <div className="text-slate-400 text-xs font-medium">{s.label}</div>

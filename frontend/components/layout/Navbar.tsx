@@ -173,9 +173,13 @@ export default function Navbar() {
                     border: "1px solid rgba(255,45,120,0.18)",
                   }}>
                   {/* Avatar */}
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black flex-shrink-0"
+                  <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center text-white text-xs font-black flex-shrink-0"
                     style={{ background: "linear-gradient(135deg, #FF2D78, #A855F7)" }}>
-                    {user.name?.[0]?.toUpperCase() ?? "U"}
+                    {user.avatar ? (
+                      <Image src={user.avatar} alt={`${user.name} profile`} width={28} height={28} className="h-full w-full object-cover" />
+                    ) : (
+                      user.name?.[0]?.toUpperCase() ?? "U"
+                    )}
                   </div>
                   <span className="text-sm font-semibold text-deep max-w-[100px] truncate">{user.name}</span>
                   <motion.div animate={{ rotate: dropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -197,9 +201,13 @@ export default function Navbar() {
                       {/* User info */}
                       <div className="px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,45,120,0.08)" }}>
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0"
+                          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center text-white text-sm font-black flex-shrink-0"
                             style={{ background: "linear-gradient(135deg, #FF2D78, #A855F7)", boxShadow: "0 2px 8px rgba(255,45,120,0.3)" }}>
-                            {user.name?.[0]?.toUpperCase() ?? "U"}
+                            {user.avatar ? (
+                              <Image src={user.avatar} alt={`${user.name} profile`} width={36} height={36} className="h-full w-full object-cover" />
+                            ) : (
+                              user.name?.[0]?.toUpperCase() ?? "U"
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-deep truncate">{user.name}</p>
@@ -342,9 +350,13 @@ export default function Navbar() {
                     {/* User info card */}
                     <div className="flex items-center gap-3 px-4 py-3 rounded-2xl"
                       style={{ background: "rgba(255,45,120,0.04)", border: "1px solid rgba(255,45,120,0.1)" }}>
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0"
+                      <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center text-white text-sm font-black flex-shrink-0"
                         style={{ background: "linear-gradient(135deg, #FF2D78, #A855F7)" }}>
-                        {user.name?.[0]?.toUpperCase() ?? "U"}
+                        {user.avatar ? (
+                          <Image src={user.avatar} alt={`${user.name} profile`} width={36} height={36} className="h-full w-full object-cover" />
+                        ) : (
+                          user.name?.[0]?.toUpperCase() ?? "U"
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-deep truncate">{user.name}</p>

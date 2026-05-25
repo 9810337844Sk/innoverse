@@ -370,19 +370,6 @@ export default function AboutPage() {
           {/* Section header */}
           <FadeIn>
             <div className="text-center mb-20">
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-black uppercase tracking-[0.22em] text-white"
-                style={{
-                  background: "linear-gradient(135deg, #1A0A12 0%, #FF2D78 55%, #A855F7 100%)",
-                  boxShadow: "0 14px 38px rgba(255,45,120,0.28)",
-                }}
-              >
-                <Sparkles size={15} /> Team Premium
-              </motion.div>
               <motion.span
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
