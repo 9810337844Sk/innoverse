@@ -23,7 +23,7 @@ export default function TestRegisterPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/test-register", form);
+      const { data } = await api.post("/auth/test-register", form) as { data: { user?: unknown; triggerAdminRefresh?: boolean } };
       toast.success("Account created successfully!");
       console.log("Created user:", data.user);
       

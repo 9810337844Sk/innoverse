@@ -74,6 +74,7 @@ export default function AdminUsersPage() {
     const interval = setInterval(() => {
       load();
     }, 2000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     
     // Listen for storage events (cross-tab communication)
     const handleStorageChange = (e: StorageEvent) => {

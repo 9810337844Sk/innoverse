@@ -163,7 +163,7 @@ export default function TestNotificationPage() {
               <ul className="text-sm text-amber-800 space-y-1">
                 <li>1. Open this page in one tab</li>
                 <li>2. Open admin panel (/admin/users) in another tab</li>
-                <li>3. Click "Trigger User Registration" above</li>
+                <li>3. Click &quot;Trigger User Registration&quot; above</li>
                 <li>4. Check if admin panel updates automatically</li>
                 <li>5. Watch the logs below for event detection</li>
               </ul>
@@ -204,14 +204,14 @@ export default function TestNotificationPage() {
           <div className="space-y-2 text-sm text-slate-600">
             <p><strong>Expected if Realtime is ENABLED:</strong></p>
             <ul className="list-disc list-inside ml-2 space-y-1 text-slate-500">
-              <li>Status shows "SUBSCRIBED" above</li>
-              <li>When you register a user, logs show "REALTIME EVENT: INSERT"</li>
+              <li>Status shows &quot;SUBSCRIBED&quot; above</li>
+              <li>When you register a user, logs show &quot;REALTIME EVENT: INSERT&quot;</li>
               <li>Updates appear in &lt;100ms</li>
             </ul>
             
             <p className="pt-3"><strong>If Realtime is NOT ENABLED:</strong></p>
             <ul className="list-disc list-inside ml-2 space-y-1 text-slate-500">
-              <li>Status shows "CLOSED" or "CHANNEL_ERROR"</li>
+              <li>Status shows &quot;CLOSED&quot; or &quot;CHANNEL_ERROR&quot;</li>
               <li>No realtime events in logs</li>
               <li>Need to run SQL: <code className="bg-slate-100 px-1 rounded">ALTER PUBLICATION supabase_realtime ADD TABLE users;</code></li>
             </ul>

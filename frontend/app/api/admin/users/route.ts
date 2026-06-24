@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     console.log("- Service Key:", serviceKey ? "✓" : "✗");
     
     const user = getUserFromRequest(req);
-    console.log("User from request:", user ? { id: user.id, role: user.role, name: user.name } : "null");
+    console.log("User from request:", user ? { id: user.id, role: user.role } : "null");
     
     if (!user || user.role !== "admin") {
       console.error("Access denied - user:", user);
