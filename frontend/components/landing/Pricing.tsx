@@ -32,9 +32,9 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "NPR 5",
-    priceNote: "per image",
-    desc: "Pay only for what you use - perfect for any size event.",
+    price: "NPR 3,999",
+    priceNote: "per month",
+    desc: "Perfect plan for growing photographers and studios.",
     free: false,
     comingSoon: true,
     features: [
@@ -49,8 +49,8 @@ const plans = [
       "Priority AI processing",
       "Priority support",
     ],
-    cta: "Get Early Access",
-    href: "/auth/register",
+    cta: "Talk to PhotoFly",
+    href: "/contact",
     highlight: true,
     icon: <Zap size={20} />,
     accent: "#FF2D78",
@@ -59,13 +59,13 @@ const plans = [
   },
   {
     name: "Studio",
-    price: "NPR 3",
-    priceNote: "per image",
-    desc: "Best value for professional studios with high volume.",
+    price: "Custom",
+    priceNote: "pricing",
+    desc: "Tailored solutions for professional studios with high volume.",
     free: false,
     comingSoon: true,
     features: [
-      "Unlimited events",
+      "Everything in Pro",
       "Unlimited photos per event",
       "AI face search",
       "Guest download links",
@@ -77,10 +77,10 @@ const plans = [
       "White-label branding",
       "API access",
       "Custom integrations",
-      "Priority support",
+      "Dedicated account manager",
       "Dedicated onboarding",
     ],
-    cta: "Contact Sales",
+    cta: "Talk to PhotoFly",
     href: "/contact",
     highlight: false,
     icon: <Building2 size={20} />,
@@ -244,31 +244,24 @@ export default function Pricing() {
                       {p.cta} <ArrowRight size={14} />
                     </motion.button>
                   </Link>
-                ) : p.highlight ? (
-                  <button
-                    disabled
-                    className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 cursor-not-allowed"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(255,45,120,0.08), rgba(168,85,247,0.08))",
-                      color: p.accent,
-                      border: `1.5px solid ${p.accentBorder}`,
-                    }}
-                  >
-                    <Clock size={13} /> Notify Me
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 cursor-not-allowed"
-                    style={{
-                      background: "rgba(100,116,139,0.06)",
-                      color: "#94a3b8",
-                      border: "1.5px solid rgba(100,116,139,0.15)",
-                    }}
-                  >
-                    <Clock size={13} /> Coming Soon
-                  </button>
-                )}
+                ) : p.comingSoon ? (
+                  <Link href={p.href}>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all"
+                      style={{
+                        background: p.highlight 
+                          ? "linear-gradient(135deg, rgba(255,45,120,0.08), rgba(168,85,247,0.08))"
+                          : "rgba(100,116,139,0.06)",
+                        color: p.highlight ? p.accent : "#94a3b8",
+                        border: `1.5px solid ${p.highlight ? p.accentBorder : "rgba(100,116,139,0.15)"}`,
+                      }}
+                    >
+                      {p.cta} <ArrowRight size={14} />
+                    </motion.button>
+                  </Link>
+                ) : null}
               </div>
             </motion.div>
           ))}
