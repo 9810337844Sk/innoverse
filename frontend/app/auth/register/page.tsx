@@ -63,9 +63,15 @@ function RegisterForm() {
     setLoading(true);
     try {
       const { data } = await api.post("/auth/verify-register", { verificationToken, otp }) as {
-        data: { user: { role: string } };
+        data: { user: { role: string }; triggerAdminRefresh?: boolean };
       };
       setAuth(data.user as Parameters<typeof setAuth>[0]);
+      
+      // Trigger admin panel refresh
+      if (data.triggerAdminRefresh) {
+        localStorage.setItem('new-user-registered', Date.now().toString());
+      }
+      
       toast.success("Account verified! Welcome to PhotoFly");
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -156,7 +162,7 @@ function RegisterForm() {
                 transition={{ delay: 0.5 + i * 0.07 }}
                 className="flex-1 aspect-square rounded-xl overflow-hidden" style={{ opacity: 0.45 }}>
                 <Image src={`https://picsum.photos/seed/${s}/120/120`} alt="" width={120} height={120}
-                  className="object-cover w-full h-full" />
+                  className="object-cover w-full h-full" loading="lazy" unoptimized />
               </motion.div>
             ))}
           </div>

@@ -28,24 +28,72 @@ export default function AdminEventsPage() {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
 
-  const load = () => {
-    setLoading(true);
-    api.get("/admin/events")
-      .then(r => setEvents((r.data as { events: EventRow[] }).events))
-      .catch(() => toast.error("Failed to load events"))
-      .finally(() => setLoading(false));
-  };
+  useEffect(() => { 
+    load(); 
+    
+    // Auto-refresh every 3 seconds for instant updates
+    const interval = setInterval(() => {
+      load();
+    }, 3000);
+    
+    // Listen for storage events (new event created)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'new-event-created') {
+        console.log('New event detected - refreshing!');
+        load();
+        localStorage.removeItem('new-event-created');
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Check localStorage periodically
+    const storageCheck = setInterval(() => {
+      if (localStorage.getItem('new-event-created')) {
+        console.log('New event created!');
+        load();
+        localStorage.removeItem('new-event-created');
+      }
+    }, 500);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(storageCheck);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get("/admin/events");
+      const eventsData = (response.data as { events: EventRow[] }).events;
+      setEvents(eventsData);
+      
+      if (eventsData.length === 0) {
+        toast.error("No events found in Supabase.");
+      }
+    } catch (err) {
+      console.error("Failed to load events:", err);
+      toast.error("Failed to load events");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleActive = async (ev: EventRow) => {
     setActionId(ev._id);
     try {
-      await api.patch("/admin/events", { id: ev._id, isActive: !ev.isActive });
+      await api.patch(`/admin/events/${ev._id}`, { is_active: !ev.isActive });
+
       setEvents(prev => prev.map(e => e._id === ev._id ? { ...e, isActive: !e.isActive } : e));
       toast.success(ev.isActive ? `"${ev.name}" deactivated` : `"${ev.name}" activated`);
-    } catch { toast.error("Action failed"); }
-    finally { setActionId(null); }
+    } catch (err) {
+      console.error("Toggle failed:", err);
+      toast.error("Action failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const filtered = events.filter(e => {

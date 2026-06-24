@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get("state");
   const expectedState = req.cookies.get("drive_oauth_state")?.value;
   if (!code || !state || !expectedState || state !== expectedState) {
-    return NextResponse.redirect(new URL("/dashboard/drive?error=no_code", req.url));
+    return NextResponse.redirect(new URL("/dashboard/events?drive=error&reason=no_code", req.url));
   }
 
   try {

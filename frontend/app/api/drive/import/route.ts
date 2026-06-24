@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDriveClient, listDriveImages, parseDriveId } from "@/lib/drive";
-import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary";
+import { listDriveImages, parseDriveId } from "@/lib/drive";
 import { getUserFromRequest } from "@/lib/serverAuth";
 import { supabase } from "@/lib/supabase";
 import type { DbEvent, DbPhoto } from "@/lib/supabase";
 
-export const maxDuration = 300;
+export const maxDuration = 60; // Vercel Pro cap — large folders may need multiple syncs
 
 type StoredPhoto = {
   _id: string;
@@ -33,6 +32,19 @@ function toStoredPhoto(p: DbPhoto): StoredPhoto {
   };
 }
 
+function getRefreshToken(req: NextRequest): string | null {
+  try {
+    const val = req.cookies.get("drive_tokens")?.value;
+    if (!val) return null;
+    const tokens = JSON.parse(Buffer.from(val, "base64url").toString("utf8")) as {
+      refresh_token?: string;
+    };
+    return tokens.refresh_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function verifyEvent(eventId: string, userId: string, role: string) {
   const { data, error } = await supabase
     .from("events")
@@ -48,38 +60,38 @@ async function verifyEvent(eventId: string, userId: string, role: string) {
   return { event: data as DbEvent };
 }
 
-async function insertPhoto(input: {
+async function upsertDrivePhoto(input: {
   eventId: string;
   url: string;
   thumbnailUrl: string;
   name: string;
-  cloudinaryPublicId: string;
-}) {
-  const existing = await supabase
+  driveKey: string;
+}): Promise<StoredPhoto> {
+  const { data: existing } = await supabase
     .from("photos")
     .select("*")
     .eq("event_id", input.eventId)
-    .eq("cloudinary_public_id", input.cloudinaryPublicId)
+    .eq("cloudinary_public_id", input.driveKey)
     .maybeSingle();
 
-  if (!existing.error && existing.data) return toStoredPhoto(existing.data as DbPhoto);
+  if (existing) return toStoredPhoto(existing as DbPhoto);
 
-  const inserted = await supabase
+  const { data: inserted, error } = await supabase
     .from("photos")
     .insert({
       event_id:             input.eventId,
       url:                  input.url,
       thumbnail_url:        input.thumbnailUrl,
       name:                 input.name,
-      cloudinary_public_id: input.cloudinaryPublicId,
+      cloudinary_public_id: input.driveKey,
       saved_at:             new Date().toISOString(),
       tags:                 ["drive"],
     })
     .select("*")
     .single();
 
-  if (inserted.error) throw inserted.error;
-  return toStoredPhoto(inserted.data as DbPhoto);
+  if (error) throw error;
+  return toStoredPhoto(inserted as DbPhoto);
 }
 
 export async function POST(req: NextRequest) {
@@ -102,7 +114,10 @@ export async function POST(req: NextRequest) {
 
     const inputId = body.folderId || parseDriveId(body.folderUrl || "");
     if (!inputId) {
-      return NextResponse.json({ error: "Paste a valid Google Drive folder or image URL" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Paste a valid Google Drive folder or image URL" },
+        { status: 400 },
+      );
     }
 
     const { event, error, status } = await verifyEvent(body.eventId, user.id, user.role);
@@ -110,55 +125,27 @@ export async function POST(req: NextRequest) {
 
     const { folderId, folderName, photos: drivePhotos } = await listDriveImages(req, inputId);
     if (!drivePhotos.length) {
-      return NextResponse.json({ photos: [], total: 0, folderId, folderName, message: "No images found in this Drive URL" });
+      return NextResponse.json({
+        photos: [], total: 0, folderId, folderName,
+        message: "No images found in this Drive URL",
+      });
     }
 
-    const drive = await getDriveClient(req);
-    const eventCode = body.eventCode || event!.code;
-    const folderSlug = eventCode.replace(/[^a-zA-Z0-9_-]/g, "_").toUpperCase();
-    const cloudinaryFolder = `photofly/photographers/${event!.photographer_id}/events/${folderSlug}`;
+    const refreshToken = getRefreshToken(req);
     const saved: StoredPhoto[] = [];
 
     for (const photo of drivePhotos) {
-      const safeName = photo.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const publicId = `drive_${photo.id}_${safeName.replace(/\.[^.]+$/, "")}`;
-      const fullPublicId = `${cloudinaryFolder}/${publicId}`;
+      const driveKey  = `drive:${photo.id}`;
+      const proxyUrl  = `/api/drive/image?fileId=${photo.id}&eventId=${body.eventId}`;
+      const thumbUrl  = photo.thumbnailLink || proxyUrl;
 
-      const existing = await supabase
-        .from("photos")
-        .select("*")
-        .eq("event_id", body.eventId)
-        .eq("cloudinary_public_id", fullPublicId)
-        .maybeSingle();
-
-      if (!existing.error && existing.data) {
-        saved.push(toStoredPhoto(existing.data as DbPhoto));
-        continue;
-      }
-
-      const file = await drive.files.get(
-        { fileId: photo.id, alt: "media", supportsAllDrives: true },
-        { responseType: "arraybuffer" }
-      );
-
-      const { url, thumbnailUrl, publicId: uploadedPublicId } = await uploadToCloudinary(
-        Buffer.from(file.data as ArrayBuffer),
-        publicId,
-        cloudinaryFolder
-      );
-
-      try {
-        saved.push(await insertPhoto({
-          eventId: body.eventId,
-          url,
-          thumbnailUrl,
-          name: photo.name,
-          cloudinaryPublicId: uploadedPublicId,
-        }));
-      } catch (insertError) {
-        await deleteFromCloudinary(uploadedPublicId).catch(() => undefined);
-        throw insertError;
-      }
+      saved.push(await upsertDrivePhoto({
+        eventId:      body.eventId,
+        url:          proxyUrl,
+        thumbnailUrl: thumbUrl,
+        name:         photo.name,
+        driveKey,
+      }));
     }
 
     const { count } = await supabase
@@ -169,14 +156,16 @@ export async function POST(req: NextRequest) {
     await supabase
       .from("events")
       .update({
-        drive_folder_url:  body.folderUrl || inputId,
-        drive_folder_id:   folderId,
-        drive_folder_name: folderName,
-        drive_synced_at:   new Date().toISOString(),
-        photo_count:       count ?? saved.length,
+        drive_folder_url:    body.folderUrl || inputId,
+        drive_folder_id:     folderId,
+        drive_folder_name:   folderName,
+        drive_synced_at:     new Date().toISOString(),
+        photo_count:         count ?? saved.length,
+        ...(refreshToken ? { drive_refresh_token: refreshToken } : {}),
       })
       .eq("id", body.eventId);
 
+    void event; // used for auth check, not needed beyond that
     return NextResponse.json({ photos: saved, total: saved.length, folderId, folderName });
   } catch (err) {
     console.error("[POST /api/drive/import]", err);

@@ -1,12 +1,21 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type User = { _id: string; name: string; email: string; role: string; avatar?: string | null };
+export type User = {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  plan?: string;
+  avatar?: string | null;
+};
 
 interface AuthState {
   user: User | null;
   _hasHydrated: boolean;
-  setAuth: (user: User) => void;
+  // Accept optional second arg (token) so existing callers don't break,
+  // but we rely on the httpOnly cookie set by the server — token ignored here.
+  setAuth: (user: User, _token?: string) => void;
   updateUser: (changes: Partial<User>) => void;
   logout: () => void;
   setHasHydrated: (v: boolean) => void;
@@ -17,19 +26,25 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       _hasHydrated: false,
-      setAuth: (user) => set({ user }),
-      updateUser: (changes) => set((state) => ({
-        user: state.user ? { ...state.user, ...changes } : null,
-      })),
+
+      setAuth: (user, _token?) => set({ user }),
+
+      updateUser: (changes) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...changes } : null,
+        })),
+
       logout: () => {
-        void fetch("/api/auth/logout", { method: "POST" });
+        // Clear the server-side httpOnly cookie
+        fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {});
         set({ user: null });
       },
+
       setHasHydrated: (v) => set({ _hasHydrated: v }),
     }),
     {
       name: "auth-storage",
-      version: 1,
+      version: 2,
       partialize: (state) => ({ user: state.user }),
       migrate: (persisted) => {
         const saved = persisted as { user?: User | null };

@@ -50,7 +50,9 @@ export async function getEvents(): Promise<StoredEvent[]> {
 export async function getEventByCode(code: string): Promise<StoredEvent | null> {
   try {
     // Use the public endpoint — no auth required (used by /find page for guests)
-    const r = await fetch(`/api/events/public/${encodeURIComponent(code.toUpperCase())}`);
+    const normalizedCode = code.trim().toUpperCase();
+    if (!normalizedCode) return null;
+    const r = await fetch(`/api/events/public/${encodeURIComponent(normalizedCode)}`);
     if (!r.ok) return null;
     const data = await r.json() as StoredEvent;
     return data._id ? normalizeEvent(data) : null;

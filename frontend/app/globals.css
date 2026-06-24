@@ -32,9 +32,10 @@ html, body {
   overflow-x: hidden;
   background: #FAFBFC;
   color: #334155;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body::selection {
@@ -216,21 +217,21 @@ body::selection {
 }
 
 /* ── Kinetic card ──────────────────────────────────────────────────────────── */
+/* transform is intentionally omitted — framer-motion whileHover handles y on parent */
 .kinetic-card {
-  transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+  transition: border-color 260ms ease, box-shadow 260ms ease;
 }
 .kinetic-card:hover {
-  transform: translateY(-5px);
   border-color: rgba(255,45,120,0.3);
   box-shadow: 0 16px 48px rgba(255,45,120,0.14), 0 4px 12px rgba(0,0,0,0.06);
 }
 
 /* ── Feature card hover ────────────────────────────────────────────────────── */
+/* transform omitted — framer-motion whileHover handles lift */
 .feature-card {
   background: #FFFFFF;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
-.feature-card:hover { transform: translateY(-4px) scale(1.01); }
 .feature-card-coral { border: 1px solid rgba(255,45,120,0.12); }
 .feature-card-coral:hover { background: #FFF5F8; border-color: rgba(255,45,120,0.3); box-shadow: 0 8px 32px rgba(255,45,120,0.12); }
 .feature-card-lav   { border: 1px solid rgba(168,85,247,0.12); }
@@ -239,11 +240,11 @@ body::selection {
 .feature-card-teal:hover  { background: #F0FDFA; border-color: rgba(13,148,136,0.3); box-shadow: 0 8px 32px rgba(13,148,136,0.10); }
 
 /* ── Step card hover ───────────────────────────────────────────────────────── */
+/* transform omitted — framer-motion whileHover on parent handles the lift */
 .step-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease;
   box-shadow: 0 4px 24px rgba(0,0,0,0.06);
 }
-.step-card:hover { transform: translateY(-8px); }
 .step-card-coral:hover { box-shadow: 0 20px 60px rgba(255,45,120,0.15), 0 4px 12px rgba(0,0,0,0.06); }
 .step-card-lav:hover   { box-shadow: 0 20px 60px rgba(168,85,247,0.12), 0 4px 12px rgba(0,0,0,0.06); }
 .step-card-teal:hover  { box-shadow: 0 20px 60px rgba(13,148,136,0.12), 0 4px 12px rgba(0,0,0,0.06); }
@@ -380,15 +381,87 @@ body::selection {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-float        { animation: float 6s ease-in-out infinite; }
-.animate-float-slow   { animation: floatSlow 8s ease-in-out infinite; }
-.animate-blob         { animation: blob 10s ease-in-out infinite; }
-.animate-spin-slow    { animation: spin-slow 25s linear infinite; }
-.animate-heartbeat    { animation: heartbeat 2s ease-in-out infinite; }
-.animate-glow-pulse   { animation: glow-pulse 2.5s ease-in-out infinite; }
-.animate-shimmer      { animation: shimmer 2s linear infinite; }
-.animate-marquee-left { animation: marquee-left 32s linear infinite; }
-.animate-marquee-right{ animation: marquee-right 36s linear infinite; }
-.animate-aurora-drift { animation: aurora-drift 12s ease-in-out infinite; }
-.animate-soft-pop     { animation: soft-pop 4s ease-in-out infinite; }
+.animate-float        { animation: float 6s ease-in-out infinite; will-change: transform; }
+.animate-float-slow   { animation: floatSlow 8s ease-in-out infinite; will-change: transform; }
+.animate-blob         { animation: blob 10s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-spin-slow    { animation: spin-slow 25s linear infinite; will-change: transform; }
+.animate-heartbeat    { animation: heartbeat 2s ease-in-out infinite; will-change: transform; }
+.animate-glow-pulse   { animation: glow-pulse 2.5s ease-in-out infinite; will-change: box-shadow; }
+.animate-shimmer      { animation: shimmer 2s linear infinite; will-change: background-position; }
+.animate-marquee-left { animation: marquee-left 32s linear infinite; will-change: transform; }
+.animate-marquee-right{ animation: marquee-right 36s linear infinite; will-change: transform; }
+.animate-aurora-drift { animation: aurora-drift 12s ease-in-out infinite; will-change: transform; }
+.animate-soft-pop     { animation: soft-pop 4s ease-in-out infinite; will-change: transform; }
 .animate-slide-up     { animation: slide-up 0.6s ease forwards; }
+
+/* ── CSS particle (replaces JS-animated framer-motion particles) ───────────── */
+.particle-dot {
+  position: absolute;
+  border-radius: 50%;
+  animation: particle-rise linear infinite;
+  will-change: transform, opacity;
+}
+@keyframes particle-rise {
+  0%   { transform: translateY(0px);    opacity: var(--p-opacity, 0.3); }
+  90%  { opacity: var(--p-opacity, 0.3); }
+  100% { transform: translateY(-900px); opacity: 0; }
+}
+
+/* ── Accessibility: respect user motion preference ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float, .animate-float-slow, .animate-blob,
+  .animate-spin-slow, .animate-heartbeat, .animate-glow-pulse,
+  .animate-marquee-left, .animate-marquee-right,
+  .animate-aurora-drift, .animate-soft-pop, .particle-dot,
+  .gradient-text { animation: none !important; }
+  .shine-card::before, .kinetic-card { transition: none !important; }
+}
+
+/* ── Utility: hide scrollbar ───────────────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Dark footer links ─────────────────────────────────────────────────────── */
+.footer-dark-link {
+  color: #64748b;
+  transition: color 0.2s ease;
+}
+.footer-dark-link:hover { color: #e2e8f0; }
+
+/* ── Better text rendering for large headings ──────────────────────────────── */
+.heading-display {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.02em;
+}
+
+/* ── Glow text for dark backgrounds ───────────────────────────────────────── */
+.text-glow-pink {
+  text-shadow: 0 0 40px rgba(255,45,120,0.5), 0 0 80px rgba(255,45,120,0.25);
+}
+
+/* ── Section fade overlays (top/bottom gradient masks) ─────────────────────── */
+.fade-top    { mask-image: linear-gradient(to bottom, transparent 0%, black 15%); }
+.fade-bottom { mask-image: linear-gradient(to top, transparent 0%, black 15%); }
+.fade-x      { mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%); }
+
+/* ── Smooth hover lift (pure CSS fallback for non-framer elements) ─────────── */
+.hover-lift {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(255,45,120,0.12);
+}
+
+/* ── Tag / chip ────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

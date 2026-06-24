@@ -99,10 +99,23 @@ export default function SettingsPage() {
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profile.name.trim()) { toast.error("Name is required"); return; }
     setSavingProfile(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSavingProfile(false);
-    toast.success("Profile updated!");
+    try {
+      const res = await fetch("/api/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profile.name.trim(), email: profile.email.trim() }),
+      });
+      const result = await res.json() as { message?: string; user?: { name: string; email: string } };
+      if (!res.ok) throw new Error(result.message || "Failed to update profile");
+      if (result.user) updateUser({ name: result.user.name, email: result.user.email });
+      toast.success(result.message || "Profile updated!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const uploadAvatar = async (file: File | undefined) => {
@@ -283,7 +296,7 @@ export default function SettingsPage() {
           {/* ── Password ── */}
           {active === "password" && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <SectionCard title="Change Password" desc="Use at least 12 characters with uppercase, lowercase, number, and symbol.">
+              <SectionCard title="Change Password" desc="Use at least 8 characters with uppercase, lowercase, number, and symbol.">
                 <form onSubmit={savePassword} className="space-y-4 max-w-sm">
                   {(["current","next","confirm"] as const).map(field => (
                     <div key={field}>
@@ -301,7 +314,7 @@ export default function SettingsPage() {
                           placeholder="••••••••"
                           className="input-field pl-11 pr-11"
                           autoComplete={field === "current" ? "current-password" : "new-password"}
-                          minLength={field === "current" ? undefined : 12}
+                          minLength={field === "current" ? undefined : 8}
                           required
                         />
                         <button

@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0; // Disable caching completely
 
 export async function GET(req: NextRequest) {
   try {
+    console.log("\n=== GET /api/admin/stats START ===");
     const user = getUserFromRequest(req);
-    if (!user || user.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    console.log("User:", user ? { id: user.id, role: user.role } : "null");
+    
+    if (!user || user.role !== "admin") {
+      console.error("Access denied");
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+    
+    console.log("Fetching stats from Supabase...");
+
+    // Get fresh Supabase client
+    const supabase = getSupabaseClient();
 
     const [usersRes, eventsRes, photosRes, searchRes, bannedRes] = await Promise.all([
       supabase.from("users").select("id, role, plan, created_at", { count: "exact" }),
@@ -25,7 +37,6 @@ export async function GET(req: NextRequest) {
     const totalSearches      = searchRes.count ?? 0;
     const totalBanned        = bannedRes.count ?? 0;
     const totalPhotographers = users.filter(u => u.role === "photographer").length;
-    const totalGuests        = users.filter(u => u.role === "user").length;
     const totalAdmins        = users.filter(u => u.role === "admin").length;
     const activeEvents       = events.filter(e => e.is_active).length;
 
@@ -64,10 +75,16 @@ export async function GET(req: NextRequest) {
       return { month: label, photos: count };
     });
 
+    console.log("Stats computed successfully:");
+    console.log("- Total Users:", totalUsers);
+    console.log("- Total Photographers:", totalPhotographers);
+    console.log("- Total Events:", totalEvents);
+    console.log("- Total Photos:", totalPhotos);
+    console.log("=== GET /api/admin/stats END ===\n");
+
     return NextResponse.json({
       totalUsers,
       totalPhotographers,
-      totalGuests,
       totalAdmins,
       totalBanned,
       totalEvents,
@@ -83,7 +100,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("[GET /api/admin/stats]", err);
     return NextResponse.json(
-      { totalUsers: 0, totalPhotographers: 0, totalGuests: 0, totalAdmins: 0, totalBanned: 0,
+      { totalUsers: 0, totalPhotographers: 0, totalAdmins: 0, totalBanned: 0,
         totalEvents: 0, activeEvents: 0, totalPhotos: 0, totalSearches: 0, totalDownloads: 0,
         planBreakdown: { free: 0, pro: 0, studio: 0 }, monthlyRegistrations: [], monthlyPhotos: [],
         storageUsedGB: 0 },

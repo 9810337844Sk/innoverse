@@ -52,15 +52,17 @@ export async function GET(
   { params }: { params: { code: string } }
 ) {
   try {
+    const normalizedCode = params.code.trim().toUpperCase();
+
     const { data, error } = await supabase
       .from("events")
       .select("id, name, date, code, photo_count, is_active")
-      .eq("code", params.code.toUpperCase())
+      .eq("code", normalizedCode)
       .eq("is_active", true)
       .single();
 
     if (error || !data) {
-      const legacyEvent = await readLegacyEvent(params.code);
+      const legacyEvent = await readLegacyEvent(normalizedCode);
       if (legacyEvent) return NextResponse.json(legacyEvent);
 
       return NextResponse.json({ message: "Event not found" }, { status: 404 });
@@ -75,7 +77,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("[GET /api/events/public/[code]]", err);
-    const legacyEvent = await readLegacyEvent(params.code);
+    const legacyEvent = await readLegacyEvent(params.code.trim().toUpperCase());
     if (legacyEvent) return NextResponse.json(legacyEvent);
 
     return NextResponse.json({ message: "Server error" }, { status: 500 });

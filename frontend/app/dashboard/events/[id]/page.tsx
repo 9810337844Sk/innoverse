@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
@@ -8,15 +8,14 @@ import {
   Upload, Images, Trash2, Brain, CheckCircle,
   CloudUpload, X, ZoomIn, Download, Tag, Users,
   FolderOpen, Save, ChevronLeft, ExternalLink,
-  RefreshCw, CalendarDays, Code2,
+  RefreshCw, CalendarDays, Code2, Clock,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { PhotoGridSkeleton } from "@/components/ui/Skeleton";
-import api from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
-import { getPhotos, savePhotos, pushPhotos, deletePhoto as deletePhotoFromDB, type StoredPhoto } from "@/lib/db";
+import { getPhotos, deletePhoto as deletePhotoFromDB, type StoredPhoto } from "@/lib/db";
 
 type Photo = StoredPhoto;
 type Event = {
@@ -34,18 +33,25 @@ export default function EventDetailPage() {
   const [progress, setProgress]     = useState(0);
   const [doneCount, setDoneCount]   = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [indexing, setIndexing]     = useState(false);
-  const [saving, setSaving]         = useState(false);
+  const [indexQueued, setIndexQueued]   = useState(0);
+  const [indexTimer, setIndexTimer]     = useState(0);
+  const [offlineIndexing, setOfflineIndexing] = useState(false);
+  const [offlineProgress, setOfflineProgress] = useState(0);
+  const [offlineLabel, setOfflineLabel] = useState("");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const [driveUrl, setDriveUrl]     = useState("");
   const [syncingDrive, setSyncingDrive] = useState(false);
   const [lightbox, setLightbox]     = useState<Photo | null>(null);
   const [filter, setFilter]         = useState<"all"|"indexed"|"pending">("all");
-  const pendingRef = useRef<Photo[]>([]);
 
   useEffect(() => {
-    api.get(`/events/${id}`)
-      .then((r) => {
-        const loaded = (r as { data: Event }).data;
+    fetch(`/api/events/${id}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Event not found");
+        return res.json() as Promise<Event>;
+      })
+      .then((loaded) => {
         setEvent(loaded);
         setDriveUrl(loaded.driveFolderUrl || "");
       })
@@ -53,71 +59,145 @@ export default function EventDetailPage() {
     getPhotos(id).then(setPhotos).finally(() => setLoading(false));
   }, [id]);
 
+  // Cleanup intervals on unmount
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (pollRef.current)  clearInterval(pollRef.current);
+  }, []);
+
   const safeFolderName = event?.name.replace(/[^a-zA-Z0-9 _-]/g,"").replace(/\s+/g,"_") ?? "";
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!acceptedFiles.length || !event) return;
-    setUploading(true); setProgress(0); setDoneCount(0); setTotalCount(acceptedFiles.length);
-    const BATCH = 10; const justUploaded: Photo[] = [];
-    for (let i = 0; i < acceptedFiles.length; i += BATCH) {
-      const batch = acceptedFiles.slice(i, i + BATCH);
+
+    // Pre-filter: skip files > 10 MB client-side to avoid silent truncation
+    const oversized = acceptedFiles.filter((f) => f.size > 10 * 1024 * 1024);
+    const validFiles = acceptedFiles.filter((f) => f.size <= 10 * 1024 * 1024);
+    if (oversized.length) {
+      toast.error(`${oversized.length} file${oversized.length > 1 ? "s" : ""} skipped (>10 MB): ${oversized.map(f => f.name).join(", ")}`);
+    }
+    if (!validFiles.length) { setUploading(false); return; }
+
+    setUploading(true); setProgress(0); setDoneCount(0); setTotalCount(validFiles.length);
+
+    // Keep batches small (3 files) to stay well under Vercel's 4.5 MB body limit
+    const BATCH = 3;
+    const justUploaded: Photo[] = [];
+    let totalFailed = 0;
+
+    for (let i = 0; i < validFiles.length; i += BATCH) {
+      const batch = validFiles.slice(i, i + BATCH);
       const form  = new FormData();
       form.append("eventId",   id);
       form.append("eventCode", event.code);
       form.append("eventName", event.name);
       batch.forEach((f) => form.append("photos", f));
+
       try {
-        const res  = await fetch("/api/upload", {
-          method: "POST",
-          body: form,
-        });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({})) as { error?: string; message?: string };
-          throw new Error(json.error || json.message || "Upload failed");
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+
+        // 200 = all ok, 207 = partial success, anything else = full failure
+        if (!res.ok && res.status !== 207) {
+          const errJson = await res.json().catch(() => ({})) as { error?: string; message?: string };
+          throw new Error(errJson.error || errJson.message || `Upload failed (${res.status})`);
         }
-        const json = await res.json() as { photos: { _id: string; url: string; thumbnailUrl?: string; name: string; cloudinaryPublicId?: string }[] };
-        const newPhotos: Photo[] = json.photos.map((p) => ({
-          _id: p._id, url: p.url, thumbnailUrl: p.thumbnailUrl ?? p.url, name: p.name,
-          cloudinaryPublicId: p.cloudinaryPublicId ?? "",
-          facesCount: 0, tags: [], indexed: false, savedAt: new Date().toISOString(),
-        }));
-        justUploaded.push(...newPhotos); pendingRef.current.push(...newPhotos);
-        await pushPhotos(id, newPhotos);
-        setPhotos((prev) => [...prev, ...newPhotos]);
+
+        const json = await res.json() as {
+          photos: { _id: string; url: string; thumbnailUrl?: string; name: string; cloudinaryPublicId?: string }[];
+          failed?: { name: string; error: string }[];
+          count: number;
+        };
+
+        // Handle successfully uploaded files
+        if (json.photos?.length) {
+          const newPhotos: Photo[] = json.photos.map((p) => ({
+            _id: p._id, url: p.url, thumbnailUrl: p.thumbnailUrl ?? p.url, name: p.name,
+            cloudinaryPublicId: p.cloudinaryPublicId ?? "",
+            facesCount: 0, tags: [], indexed: false, savedAt: new Date().toISOString(),
+          }));
+          justUploaded.push(...newPhotos);
+          setPhotos((prev) => [...prev, ...newPhotos]);
+        }
+
+        // Warn about partial failures without aborting remaining batches
+        if (json.failed?.length) {
+          totalFailed += json.failed.length;
+          json.failed.forEach((f) => toast.error(`âš ï¸ ${f.name}: ${f.error}`, { duration: 5000 }));
+        }
       } catch (err) {
-        toast.error(`Batch ${Math.floor(i / BATCH) + 1} failed: ${err instanceof Error ? err.message : "Upload failed"}`);
+        const batchNum = Math.floor(i / BATCH) + 1;
+        toast.error(`Batch ${batchNum} failed: ${err instanceof Error ? err.message : "Upload failed"}`);
       }
-      const done = Math.min(i + BATCH, acceptedFiles.length);
-      setDoneCount(done); setProgress(Math.round((done / acceptedFiles.length) * 100));
+
+      const done = Math.min(i + BATCH, validFiles.length);
+      setDoneCount(done); setProgress(Math.round((done / validFiles.length) * 100));
     }
+
     setUploading(false);
-    if (justUploaded.length) toast.success(`✅ ${justUploaded.length} photo${justUploaded.length > 1 ? "s" : ""} uploaded!`);
+    if (justUploaded.length) {
+      const failNote = totalFailed > 0 ? ` (${totalFailed} failed)` : "";
+      toast.success(`âœ… ${justUploaded.length} photo${justUploaded.length > 1 ? "s" : ""} uploaded${failNote}!`);
+    } else if (totalFailed > 0) {
+      toast.error("All uploads failed. Check file types and try again.");
+    }
   }, [event, id]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop, accept: { "image/*": [] }, multiple: true,
   });
 
-  const saveAll = async () => {
-    setSaving(true);
-    try {
-      await savePhotos(id, photos); pendingRef.current = [];
-      toast.success(`✅ ${photos.length} photos saved`);
-    } catch { toast.error("Save failed"); } finally { setSaving(false); }
-  };
+  const runOfflineIndex = async () => {
+    const unindexed = photos.filter((p) => !p.indexed);
+    if (!unindexed.length) { toast("All photos already have a browser index", { icon: "âœ…" }); return; }
 
-  const indexFaces = async () => {
-    setIndexing(true);
+    setOfflineIndexing(true);
+    setOfflineProgress(0);
+    setOfflineLabel("Preparing browser scanâ€¦");
+
     try {
-      await api.post(`/photos/index/${id}`);
-      const updated = photos.map((p) => ({
-        ...p, indexed: true,
-        facesCount: p.facesCount || Math.floor(Math.random() * 3) + 1,
-        tags: p.tags.length ? p.tags : ["portrait"],
+      const { loadModels, computeAllDescriptors } = await import("@/lib/faceRecognition");
+      await loadModels();
+
+      const results = await computeAllDescriptors(unindexed, (done, total, label) => {
+        setOfflineProgress(Math.round((done / total) * 100));
+        setOfflineLabel(label);
+      });
+
+      setOfflineLabel("Saving to databaseâ€¦");
+      const res = await fetch("/api/photos/client-index", {
+        method:      "POST",
+        credentials: "same-origin",
+        headers:     { "Content-Type": "application/json" },
+        body:        JSON.stringify({ eventId: id, photos: results }),
+      });
+
+      const json = await res.json() as { saved: number; failed: number; error?: string };
+      if (!res.ok) {
+        if (res.status === 401) throw new Error("Session expired â€” please refresh the page and try again");
+        throw new Error(json.error || "Failed to save indexing results");
+      }
+      if (json.saved === 0 && json.failed > 0) {
+        throw new Error(`Database save failed for all ${json.failed} photos. Check your Supabase DB has the faces_client column (run the migration in Supabase SQL Editor).`);
+      }
+
+      const withFaces = results.filter((r) => r.descriptors.length > 0).length;
+      const failNote  = json.failed > 0 ? ` (${json.failed} DB errors)` : "";
+      toast.success(`âœ… Offline index done â€” ${withFaces} photo${withFaces === 1 ? "" : "s"} with faces, ${json.saved} saved${failNote}`);
+
+      // Update local state so the stats bar shows the correct indexed count
+      const processedSet = new Set(results.map(r => r.id));
+      setPhotos(prev => prev.map(p => {
+        if (!processedSet.has(p._id)) return p;
+        const pr = results.find(r => r.id === p._id);
+        return { ...p, indexed: true, facesCount: pr?.descriptors.length ?? p.facesCount };
       }));
-      setPhotos(updated); await savePhotos(id, updated);
-      toast.success("Face indexing complete!");
-    } catch { toast.error("Indexing failed"); } finally { setIndexing(false); }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Offline indexing failed");
+    } finally {
+      setOfflineIndexing(false);
+      setOfflineProgress(0);
+      setOfflineLabel("");
+    }
   };
 
   const deletePhoto = async (photoId: string) => {
@@ -136,7 +216,7 @@ export default function EventDetailPage() {
         a.href = p.url; a.download = p.name || `photo_${i + 1}.jpg`; a.click();
       }, i * 120);
     });
-    toast.success(`Downloading ${photos.length} photos…`);
+    toast.success(`Downloading ${photos.length} photosâ€¦`);
   };
 
   const syncDriveFolder = async () => {
@@ -174,7 +254,6 @@ export default function EventDetailPage() {
         driveFolderName: json.folderName || event.driveFolderName || "Google Drive Folder",
         driveSyncedAt: new Date().toISOString(), photoCount: updatedPhotos.length,
       };
-      setPhotos(updatedPhotos); setEvent(updatedEvent); pendingRef.current = [];
       toast.success(`Drive imported: ${drivePhotos.length} photo${drivePhotos.length === 1 ? "" : "s"} saved`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Drive sync failed");
@@ -185,14 +264,13 @@ export default function EventDetailPage() {
     filter === "indexed" ? p.indexed : filter === "pending" ? !p.indexed : true
   );
   const indexedCount = photos.filter((p) => p.indexed).length;
-  const unsaved      = pendingRef.current.length;
 
   if (loading) return <div className="space-y-6"><PhotoGridSkeleton /></div>;
 
   return (
     <div className="space-y-6 max-w-6xl">
 
-      {/* ── Back + Header ── */}
+      {/* â”€â”€ Back + Header â”€â”€ */}
       <div>
         <Link href="/dashboard/events"
           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-primary mb-4 transition-colors font-medium">
@@ -205,7 +283,7 @@ export default function EventDetailPage() {
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <span className="flex items-center gap-1.5 text-xs text-slate-400">
                 <CalendarDays size={13} />
-                {event?.date ? new Date(event.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : ""}
+                {event?.date ? new Date(event.date + "T00:00:00").toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : ""}
               </span>
               <span className="flex items-center gap-1.5 text-xs font-mono font-bold px-2.5 py-1 rounded-lg"
                 style={{ color: "#A855F7", background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
@@ -222,23 +300,18 @@ export default function EventDetailPage() {
             <Button size="sm" onClick={open} disabled={uploading}>
               <CloudUpload size={14} /> Add Photos
             </Button>
-            <Button size="sm" variant={unsaved > 0 ? "primary" : "ghost"} onClick={saveAll}
-              loading={saving} disabled={photos.length === 0}>
-              <Save size={14} />
-              {unsaved > 0 ? `Save (${unsaved} new)` : "Save All"}
-            </Button>
             <Button size="sm" variant="ghost" onClick={downloadAll} disabled={photos.length === 0}>
               <Download size={14} /> Download All
             </Button>
-            <Button size="sm" variant="outline" onClick={indexFaces}
-              loading={indexing} disabled={photos.length === 0}>
-              <Brain size={14} /> Index Faces
+            <Button size="sm" variant="outline" onClick={runOfflineIndex}
+              loading={offlineIndexing} disabled={photos.length === 0}>
+              <Brain size={14} /> {offlineIndexing ? "Scanningâ€¦" : "Scan Faces"}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ── Stats bar ── */}
+      {/* â”€â”€ Stats bar â”€â”€ */}
       {photos.length > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
@@ -261,25 +334,62 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* ── Unsaved banner ── */}
+      {/* â”€â”€ AI indexing countdown â”€â”€ */}
       <AnimatePresence>
-        {unsaved > 0 && (
+        {indexTimer > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="flex items-center justify-between px-5 py-3.5 rounded-2xl"
-            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}
+            className="flex items-center justify-between px-5 py-3.5 rounded-2xl gap-3"
+            style={{ background: "rgba(13,148,136,0.07)", border: "1px solid rgba(13,148,136,0.2)" }}
           >
-            <p className="text-amber-700 text-sm font-medium">
-              💾 {unsaved} unsaved photo{unsaved > 1 ? "s" : ""} — click &quot;Save All&quot; to keep them after reload
-            </p>
-            <Button size="sm" onClick={saveAll} loading={saving}>
-              <Save size={14} /> Save Now
-            </Button>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Clock size={15} style={{ color: "#0D9488", flexShrink: 0 }} className="animate-pulse" />
+              <div className="flex-1 min-w-0">
+                <p className="text-teal-700 text-sm font-semibold">
+                  Face scan in progress â€” {Math.floor(indexTimer / 60)}:{String(indexTimer % 60).padStart(2, "0")} remaining
+                </p>
+                <p className="text-teal-600 text-xs mt-0.5 opacity-75">
+                  {indexQueued} photo{indexQueued === 1 ? "" : "s"} Ã— ~30s each Â· auto-refreshes every 30s
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0 w-28">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(13,148,136,0.15)" }}>
+                <motion.div className="h-full rounded-full bg-teal-500"
+                  animate={{ width: `${100 - Math.round((indexTimer / (indexQueued * 30)) * 100)}%` }}
+                  transition={{ duration: 1 }} />
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Google Drive section ── */}
+      {/* â”€â”€ Offline indexing progress â”€â”€ */}
+      <AnimatePresence>
+        {offlineIndexing && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="px-5 py-4 rounded-2xl"
+            style={{ background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.2)" }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex items-center gap-2 text-sm font-semibold text-violet-700">
+                <Brain size={13} className="animate-pulse" /> Scanning Faces in Browser
+              </span>
+              <span className="text-xs font-bold text-violet-500">{offlineProgress}%</span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(139,92,246,0.12)" }}>
+              <motion.div className="h-full rounded-full"
+                style={{ background: "linear-gradient(90deg,#8B5CF6,#6366F1)" }}
+                animate={{ width: `${offlineProgress || 3}%` }}
+                transition={{ duration: 0.3 }} />
+            </div>
+            <p className="text-violet-500 text-xs mt-2">{offlineLabel}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* â”€â”€ Google Drive section â”€â”€ */}
       <div className="rounded-3xl p-5 bg-white"
         style={{ border: "1px solid rgba(255,45,120,0.1)", boxShadow: "0 2px 16px rgba(255,45,120,0.05)" }}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
@@ -332,7 +442,7 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      {/* ── Drop zone ── */}
+      {/* â”€â”€ Drop zone â”€â”€ */}
       <div
         {...getRootProps()}
         className={`relative border-2 border-dashed rounded-3xl transition-all duration-300 cursor-pointer bg-white ${
@@ -352,7 +462,7 @@ export default function EventDetailPage() {
               <CloudUpload size={26} style={{ color: "#FF2D78" }} className="animate-bounce" />
             </div>
             <p className="font-semibold text-base text-deep mb-1">
-              Saving {doneCount} / {totalCount} photos…
+              Saving {doneCount} / {totalCount} photos...
             </p>
             <p className="text-slate-400 text-sm mb-5">{progress}% complete</p>
             <div className="max-w-sm mx-auto">
@@ -379,7 +489,7 @@ export default function EventDetailPage() {
               {isDragActive ? "Drop photos here!" : "Drag & drop photos"}
             </p>
             <p className="text-slate-400 text-sm mb-5">
-              JPG · PNG · WEBP · Bulk upload 1000+ images
+              JPG Â· PNG Â· WEBP Â· Bulk upload 1000+ images
             </p>
             <Button size="sm" onClick={() => open()}>
               <CloudUpload size={14} /> Browse Files
@@ -388,7 +498,7 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      {/* ── Filter tabs ── */}
+      {/* â”€â”€ Filter tabs â”€â”€ */}
       {photos.length > 0 && (
         <div className="flex items-center gap-2">
           {(["all", "indexed", "pending"] as const).map((f) => {
@@ -407,7 +517,7 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* ── Photo grid ── */}
+      {/* â”€â”€ Photo grid â”€â”€ */}
       {filtered.length > 0 ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
           <AnimatePresence>
@@ -416,7 +526,7 @@ export default function EventDetailPage() {
                 initial={{ opacity: 0, scale: 0.88 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.88 }}
-                transition={{ delay: Math.min(i * 0.015, 0.4), duration: 0.22 }}
+                transition={{ delay: Math.min(i * 0.012, 0.25), duration: 0.18 }}
                 className="relative group aspect-square rounded-xl sm:rounded-2xl overflow-hidden"
                 style={{ background: "#F1F5F9" }}
               >
@@ -424,11 +534,11 @@ export default function EventDetailPage() {
                   src={photo.thumbnailUrl ?? photo.url} alt={photo.name || "Event photo"} fill unoptimized
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                {/* Actions — always visible on mobile, hover on desktop */}
+                {/* Actions â€” always visible on mobile, hover on desktop */}
                 <div className="absolute inset-0 bg-black/0 sm:group-hover:bg-black/35 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 sm:opacity-0 sm:group-hover:opacity-100">
                   {/* On mobile: small persistent buttons at bottom */}
                   <div className="absolute bottom-1 left-1 right-1 flex gap-1 sm:hidden">
-                    <button onClick={() => setLightbox(photo)}
+                    <button onClick={() => { setLightbox(photo); fetch("/api/photos/track",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo._id,eventId:id,action:"view",photoName:photo.name})}).catch(()=>{}); }}
                       className="flex-1 h-7 bg-white/90 rounded-lg flex items-center justify-center">
                       <ZoomIn size={12} style={{ color: "#1A0A12" }} />
                     </button>
@@ -438,7 +548,7 @@ export default function EventDetailPage() {
                     </button>
                   </div>
                   {/* Desktop hover buttons */}
-                  <button onClick={() => setLightbox(photo)}
+                  <button onClick={() => { setLightbox(photo); fetch("/api/photos/track",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo._id,eventId:id,action:"view",photoName:photo.name})}).catch(()=>{}); }}
                     className="hidden sm:flex w-8 h-8 bg-white/90 rounded-xl items-center justify-center hover:bg-white transition-colors shadow-sm">
                     <ZoomIn size={14} style={{ color: "#1A0A12" }} />
                   </button>
@@ -472,12 +582,12 @@ export default function EventDetailPage() {
             <Images size={24} className="text-slate-300" />
           </div>
           <p className="font-medium text-slate-500">
-            {filter !== "all" ? `No ${filter} photos` : "No photos yet — upload some above!"}
+            {filter !== "all" ? `No ${filter} photos` : "No photos yet â€” upload some above!"}
           </p>
         </div>
       )}
 
-      {/* ── Lightbox ── */}
+      {/* â”€â”€ Lightbox â”€â”€ */}
       <AnimatePresence>
         {lightbox && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -514,7 +624,8 @@ export default function EventDetailPage() {
                     </span>
                   ))}
                 </div>
-                <a href={lightbox.url} download={lightbox.name} target="_blank" rel="noreferrer">
+                <a href={lightbox.url} download={lightbox.name} target="_blank" rel="noreferrer"
+                  onClick={() => fetch("/api/photos/track",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:lightbox._id,eventId:id,action:"download",photoName:lightbox.name})}).catch(()=>{})}>
                   <Button size="sm"><Download size={13} /> Download</Button>
                 </a>
               </div>
@@ -525,3 +636,6 @@ export default function EventDetailPage() {
     </div>
   );
 }
+
+
+

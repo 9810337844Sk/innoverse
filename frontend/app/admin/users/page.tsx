@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
+import { createClient } from "@supabase/supabase-js";
 
 type UserRow = {
   _id: string; name: string; email: string;
@@ -38,32 +39,134 @@ export default function AdminUsersPage() {
 
   const load = () => {
     setLoading(true);
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] 🔄 Loading users from API...`);
+    
     api.get("/admin/users")
-      .then(r => setUsers((r.data as { users: UserRow[] }).users))
-      .catch(() => toast.error("Failed to load users"))
+      .then(r => {
+        console.log(`[${timestamp}] ✅ API Response received:`, r.data);
+        const usersData = (r.data as { users: UserRow[] }).users;
+        console.log(`[${timestamp}] 📊 Users loaded: ${usersData.length} total`);
+        setUsers(usersData);
+        
+        if (usersData.length === 0) {
+          toast.error("No users found in Supabase. Add users in database.");
+        } else {
+          // Show subtle toast on update (only if not initial load)
+          if (users.length > 0 && usersData.length !== users.length) {
+            const diff = usersData.length - users.length;
+            toast.success(`Users updated: ${diff > 0 ? '+' : ''}${diff} (${usersData.length} total)`, { duration: 2000 });
+            console.log(`[${timestamp}] 🎉 User count changed: ${users.length} → ${usersData.length}`);
+          }
+        }
+      })
+      .catch(err => {
+        console.error(`[${timestamp}] ❌ API Error:`, err);
+        toast.error("Failed to load users: " + (err.response?.data?.message || err.message));
+      })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { 
+    load(); 
+    
+    // Fast auto-refresh every 2 seconds for near-instant updates
+    const interval = setInterval(() => {
+      load();
+    }, 2000);
+    
+    // Listen for storage events (cross-tab communication)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'new-user-registered') {
+        console.log('New user registration detected via storage event!');
+        load(); // Immediately reload
+        localStorage.removeItem('new-user-registered'); // Clean up
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check localStorage periodically (for same-tab updates)
+    const storageCheckInterval = setInterval(() => {
+      if (localStorage.getItem('new-user-registered')) {
+        console.log('New user registration detected!');
+        load();
+        localStorage.removeItem('new-user-registered');
+      }
+    }, 500); // Check every 500ms
+    
+    // Supabase Realtime subscription for INSTANT updates
+    let realtimeChannel: any = null;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (supabaseUrl && supabaseAnonKey) {
+      console.log('🔴 Supabase Realtime: Connecting...');
+      const realtimeClient = createClient(supabaseUrl, supabaseAnonKey);
+      
+      realtimeChannel = realtimeClient
+        .channel('users-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'users'
+          },
+          (payload) => {
+            console.log('🔴 Supabase Realtime: User change detected!', payload.eventType);
+            load(); // INSTANT reload
+            toast.success('User list updated!', { duration: 2000 });
+          }
+        )
+        .subscribe((status) => {
+          console.log('🔴 Supabase Realtime status:', status);
+        });
+    } else {
+      console.warn('⚠️ Supabase Realtime: Not available (missing anon key)');
+    }
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(storageCheckInterval);
+      window.removeEventListener('storage', handleStorageChange);
+      
+      if (realtimeChannel) {
+        console.log('🔴 Supabase Realtime: Disconnecting...');
+        realtimeChannel.unsubscribe();
+      }
+    };
+  }, []);
 
   const toggleBan = async (user: UserRow) => {
     setActionId(user._id);
     try {
       await api.patch(`/admin/users/${user._id}`, { banned: !user.banned });
+      
       setUsers(prev => prev.map(u => u._id === user._id ? { ...u, banned: !u.banned } : u));
       toast.success(user.banned ? `${user.name} unbanned` : `${user.name} banned`);
-    } catch { toast.error("Action failed"); }
-    finally { setActionId(null); }
+    } catch (err) {
+      console.error("Ban toggle failed:", err);
+      toast.error("Action failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const deleteUser = async (user: UserRow) => {
     setActionId(user._id);
     try {
       await api.delete(`/admin/users/${user._id}`);
+      
       setUsers(prev => prev.filter(u => u._id !== user._id));
       toast.success(`${user.name} deleted`);
-    } catch { toast.error("Delete failed"); }
-    finally { setActionId(null); setConfirmDelete(null); }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      toast.error("Delete failed");
+    } finally {
+      setActionId(null);
+      setConfirmDelete(null);
+    }
   };
 
   const saveEdit = async () => {
@@ -71,11 +174,16 @@ export default function AdminUsersPage() {
     setActionId(editUser._id);
     try {
       await api.patch(`/admin/users/${editUser._id}`, { role: editRole, plan: editPlan });
+      
       setUsers(prev => prev.map(u => u._id === editUser._id ? { ...u, role: editRole, plan: editPlan } : u));
       toast.success("User updated");
       setEditUser(null);
-    } catch { toast.error("Update failed"); }
-    finally { setActionId(null); }
+    } catch (err) {
+      console.error("Update failed:", err);
+      toast.error("Update failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const filtered = users.filter(u => {
@@ -88,7 +196,6 @@ export default function AdminUsersPage() {
 
   const counts = {
     all:          users.length,
-    user:         users.filter(u => u.role === "user").length,
     photographer: users.filter(u => u.role === "photographer").length,
     admin:        users.filter(u => u.role === "admin").length,
     banned:       users.filter(u => u.banned).length,
@@ -113,7 +220,6 @@ export default function AdminUsersPage() {
       <div className="flex items-center gap-2 flex-wrap">
         {[
           { key: "all",          label: "All",           count: counts.all },
-          { key: "user",         label: "Guests",        count: counts.user },
           { key: "photographer", label: "Photographers", count: counts.photographer },
           { key: "admin",        label: "Admins",        count: counts.admin },
           { key: "banned",       label: "Banned",        count: counts.banned },
@@ -293,7 +399,6 @@ export default function AdminUsersPage() {
                   <select value={editRole} onChange={e => setEditRole(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl text-sm text-deep focus:outline-none"
                     style={{ border: "1.5px solid rgba(239,68,68,0.2)", background: "#FAFBFC" }}>
-                    <option value="user">Guest (user)</option>
                     <option value="photographer">Photographer</option>
                     <option value="admin">Admin</option>
                   </select>

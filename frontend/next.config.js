@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: true,
+  poweredByHeader: false,
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -11,7 +13,8 @@ const nextConfig = {
     return config;
   },
   images: {
-    domains: ["res.cloudinary.com", "s3.amazonaws.com", "localhost", "picsum.photos", "photostudiokathmandu.com", "www.alfaazphotography.com", "www.weddingkathmandu.com", "www.bihebazaar.com", "blogger.googleusercontent.com", "i.pinimg.com", "t3.ftcdn.net"],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
     remotePatterns: [
       { protocol: "https", hostname: "**.cloudinary.com" },
       { protocol: "https", hostname: "**.amazonaws.com" },
@@ -26,8 +29,10 @@ const nextConfig = {
     ],
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
+    // These fallback to localhost if not set (good for development)
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api",
     NEXT_PUBLIC_AI_URL:  process.env.NEXT_PUBLIC_AI_URL  || "http://localhost:8000",
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   },
 };
 

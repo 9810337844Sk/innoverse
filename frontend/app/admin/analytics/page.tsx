@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Search, Download, Users, Images, RefreshCw } from "lucide-react";
+import { TrendingUp, Users, Images, RefreshCw } from "lucide-react";
 import api from "@/lib/api";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -9,7 +9,7 @@ import {
 } from "recharts";
 
 type AdminStats = {
-  totalUsers: number; totalPhotographers: number; totalGuests: number;
+  totalUsers: number; totalPhotographers: number;
   totalAdmins: number; totalBanned: number;
   totalEvents: number; activeEvents: number;
   totalPhotos: number; totalSearches: number; totalDownloads: number;
@@ -51,8 +51,6 @@ export default function AdminAnalyticsPage() {
   const kpis = [
     { icon: <Users size={18} />,    label: "Total Users",    value: s?.totalUsers    ?? 0, color: "linear-gradient(135deg,#6366F1,#8B5CF6)" },
     { icon: <Images size={18} />,   label: "Total Photos",   value: s?.totalPhotos   ?? 0, color: "linear-gradient(135deg,#FF2D78,#FF6B9D)" },
-    { icon: <Search size={18} />,   label: "Face Searches",  value: s?.totalSearches ?? 0, color: "linear-gradient(135deg,#A855F7,#C084FC)" },
-    { icon: <Download size={18} />, label: "Downloads",      value: s?.totalDownloads ?? 0, color: "linear-gradient(135deg,#0D9488,#14B8A6)" },
   ];
 
   return (
@@ -70,7 +68,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
         {kpis.map((k, i) => (
           <motion.div key={k.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.07 }}
@@ -89,62 +87,6 @@ export default function AdminAnalyticsPage() {
             </div>
           </motion.div>
         ))}
-      </div>
-
-      {/* Charts row 1 */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* User registrations area chart */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="bg-white rounded-2xl p-6"
-          style={{ border: "1px solid rgba(239,68,68,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center gap-2 mb-5">
-            <Users size={16} style={{ color: "#6366F1" }} />
-            <h2 className="font-bold text-deep text-base">User Registrations</h2>
-            <span className="ml-auto text-xs text-slate-400">Last 6 months</span>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={s?.monthlyRegistrations ?? []}>
-              <defs>
-                <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366F1" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(239,68,68,0.06)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area dataKey="users" name="Users" stroke="#6366F1" strokeWidth={2.5}
-                fill="url(#userGrad)" dot={{ fill: "#6366F1", r: 4, strokeWidth: 0 }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </motion.div>
-
-        {/* Photos uploaded bar chart */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.37 }}
-          className="bg-white rounded-2xl p-6"
-          style={{ border: "1px solid rgba(239,68,68,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center gap-2 mb-5">
-            <Images size={16} style={{ color: "#FF2D78" }} />
-            <h2 className="font-bold text-deep text-base">Photos Uploaded</h2>
-            <span className="ml-auto text-xs text-slate-400">Last 6 months</span>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={s?.monthlyPhotos ?? []} barSize={28}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(239,68,68,0.06)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,45,120,0.04)" }} />
-              <defs>
-                <linearGradient id="photoGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#FF2D78" />
-                  <stop offset="100%" stopColor="#FF6B9D" />
-                </linearGradient>
-              </defs>
-              <Bar dataKey="photos" name="Photos" fill="url(#photoGrad)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </motion.div>
       </div>
 
       {/* Charts row 2 */}
@@ -176,8 +118,6 @@ export default function AdminAnalyticsPage() {
           <h2 className="font-bold text-deep text-base mb-5">Engagement Summary</h2>
           <div className="space-y-4">
             {[
-              { label: "Searches per Event",  value: s ? ((s.totalSearches / Math.max(s.totalEvents, 1)).toFixed(1)) : "—", color: "#A855F7" },
-              { label: "Downloads per Event", value: s ? ((s.totalDownloads / Math.max(s.totalEvents, 1)).toFixed(1)) : "—", color: "#0D9488" },
               { label: "Photos per Event",    value: s ? ((s.totalPhotos / Math.max(s.totalEvents, 1)).toFixed(1)) : "—", color: "#FF2D78" },
               { label: "Active Event Rate",   value: s ? `${Math.round((s.activeEvents / Math.max(s.totalEvents, 1)) * 100)}%` : "—", color: "#10B981" },
               { label: "Ban Rate",            value: s ? `${Math.round((s.totalBanned / Math.max(s.totalUsers, 1)) * 100)}%` : "—", color: "#EF4444" },

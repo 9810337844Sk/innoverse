@@ -9,12 +9,15 @@ create extension if not exists "pg_trgm";
 
 -- ── Drop everything first so re-runs are clean ───────────────────────────────
 drop table if exists public.search_logs cascade;
+drop table if exists public.photo_views cascade;
 drop table if exists public.photos      cascade;
 drop table if exists public.events      cascade;
 drop table if exists public.users       cascade;
 
 drop function if exists public.set_updated_at()                    cascade;
 drop function if exists public.increment_event_counter(uuid, text) cascade;
+drop function if exists public.increment_photo_count(uuid, integer) cascade;
+drop function if exists public.increment_photo_view(uuid, uuid, text, text) cascade;
 drop function if exists public.hash_password(text)                 cascade;
 drop function if exists public.check_password(text, text)          cascade;
 
@@ -53,6 +56,7 @@ create table public.events (
   drive_folder_id      text,
   drive_folder_name    text,
   drive_synced_at      timestamptz,
+  drive_refresh_token  text,                            -- stored at Drive-import time for guest proxy access
   album_enabled        boolean     not null default true,
   album_title          text,
   album_subtitle       text,
@@ -75,14 +79,24 @@ create table public.photos (
   name                 text,
   cloudinary_public_id text,                        -- e.g. "photofly/events/EVENT_CODE/abc123"
   faces_count          integer     not null default 0,
+  faces                jsonb       not null default '[]'::jsonb,  -- Facenet512 512-dim embeddings from AI service
+  faces_client         jsonb       not null default '[]'::jsonb,  -- face-api.js 128-dim descriptors for offline search
   tags                 text[]      not null default '{}',
   indexed              boolean     not null default false,
   saved_at             timestamptz not null default now(),
   created_at           timestamptz not null default now()
 );
 
--- Migration: add cloudinary_public_id if upgrading an existing DB
--- alter table public.photos add column if not exists cloudinary_public_id text;
+-- ── Migration: run these in Supabase SQL Editor when upgrading an existing DB ─
+-- alter table public.photos  add column if not exists cloudinary_public_id text;
+-- alter table public.photos  add column if not exists faces       jsonb not null default '[]'::jsonb;
+-- alter table public.photos  add column if not exists faces_client jsonb not null default '[]'::jsonb;
+-- alter table public.events  add column if not exists drive_refresh_token text;
+-- alter table public.events  add column if not exists album_enabled  boolean not null default true;
+-- alter table public.events  add column if not exists album_title    text;
+-- alter table public.events  add column if not exists album_subtitle text;
+-- alter table public.events  add column if not exists album_theme    text not null default 'rose';
+-- alter table public.events  add column if not exists album_cover_photo_id uuid;
 
 create index photos_event_idx   on public.photos (event_id);
 create index photos_indexed_idx on public.photos (event_id, indexed);
@@ -183,31 +197,57 @@ create policy "allow_all_photos"      on public.photos      for all using (true)
 create policy "allow_all_search_logs" on public.search_logs for all using (true) with check (true);
 
 -- ── 9. Seed demo data ─────────────────────────────────────────────────────────
+-- Optional: Create default admin user (PhotoFly Admin)
+-- Password: demo1234 (change this in production!)
 
 insert into public.users (id, name, email, password_hash, role, plan) values
   (
     '00000000-0000-0000-0000-000000000001',
-    'Alex Johnson',
-    'photographer@demo.com',
-    crypt('demo1234', gen_salt('bf', 10)),
-    'photographer',
-    'free'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000002',
-    'Sarah Williams',
-    'admin@demo.com',
+    'PhotoFly Admin',
+    'sachin.it.ktm@gmail.com',
     crypt('demo1234', gen_salt('bf', 10)),
     'admin',
     'free'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000003',
-    'Mike Chen',
-    'user@demo.com',
-    crypt('demo1234', gen_salt('bf', 10)),
-    'user',
-    'free'
   )
 on conflict (email) do nothing;
+
+-- ── 10. Photo view tracking ───────────────────────────────────────────────────
+
+create table public.photo_views (
+  photo_id        uuid        primary key references public.photos(id) on delete cascade,
+  event_id        uuid        not null references public.events(id) on delete cascade,
+  photo_name      text        not null default '',
+  view_count      integer     not null default 0,
+  download_count  integer     not null default 0,
+  last_viewed_at  timestamptz not null default now()
+);
+
+create index photo_views_event_idx      on public.photo_views (event_id);
+create index photo_views_last_viewed_idx on public.photo_views (last_viewed_at desc);
+
+alter table public.photo_views enable row level security;
+create policy "allow_all_photo_views" on public.photo_views for all using (true) with check (true);
+
+-- Atomic upsert-or-increment for photo views/downloads
+create function public.increment_photo_view(
+  p_photo_id   uuid,
+  p_event_id   uuid,
+  p_photo_name text,
+  p_action     text   -- 'view' | 'download'
+)
+returns void language plpgsql security definer as $$
+begin
+  insert into public.photo_views (photo_id, event_id, photo_name, view_count, download_count, last_viewed_at)
+  values (
+    p_photo_id, p_event_id, p_photo_name,
+    case when p_action = 'view'     then 1 else 0 end,
+    case when p_action = 'download' then 1 else 0 end,
+    now()
+  )
+  on conflict (photo_id) do update set
+    view_count     = photo_views.view_count     + case when p_action = 'view'     then 1 else 0 end,
+    download_count = photo_views.download_count + case when p_action = 'download' then 1 else 0 end,
+    last_viewed_at = now();
+end;
+$$;
 

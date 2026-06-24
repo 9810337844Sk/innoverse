@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { ArrowRight, Clock, Mail, MapPin, MessageCircle, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, Clock, Mail, MapPin, MessageCircle, Phone, Send, Sparkles } from "lucide-react";
 import Footer from "@/components/landing/Footer";
 
 const WHATSAPP_NUM = "9779823415625";
@@ -85,8 +85,42 @@ function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   );
 }
 
+const SUBJECTS = [
+  "General Enquiry",
+  "Pricing & Plans",
+  "Technical Support",
+  "Demo Request",
+  "Partnership",
+  "Other",
+];
+
 export default function ContactPage() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [openFaq, setOpenFaq]   = useState<number | null>(null);
+  const [form, setForm]         = useState({ name: "", email: "", subject: "General Enquiry", message: "" });
+  const [sending, setSending]   = useState(false);
+  const [sent, setSent]         = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    setSending(true);
+    try {
+      const res  = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(json.error || "Send failed");
+      setSent(true);
+      setForm({ name: "", email: "", subject: "General Enquiry", message: "" });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <main className="min-h-screen" style={{ background: "#FAFBFC" }}>
@@ -138,6 +172,113 @@ export default function ContactPage() {
               </a>
             </FadeIn>
           ))}
+        </div>
+      </section>
+
+      {/* ── Contact Form ─────────────────────────────────────────────────── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8" style={{ background: "#FAFBFC" }}>
+        <div className="max-w-2xl mx-auto">
+          <FadeIn>
+            <div className="text-center mb-10">
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] px-3 py-1.5 rounded-full mb-4"
+                style={{ color: "#FF2D78", background: "rgba(255,45,120,0.08)", border: "1px solid rgba(255,45,120,0.18)" }}>
+                <Send size={11} /> Send a Message
+              </span>
+              <h2 className="font-black text-3xl sm:text-4xl text-deep tracking-tight">Drop us a line</h2>
+              <p className="text-slate-500 mt-2 text-sm">Fill out the form and we&apos;ll get back to you within 24 hours.</p>
+            </div>
+
+            <div className="rounded-3xl p-8 sm:p-10"
+              style={{ background: "#fff", border: "1px solid rgba(255,45,120,0.12)", boxShadow: "0 4px 40px rgba(255,45,120,0.06)" }}>
+
+              {sent ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center gap-4 py-8 text-center"
+                >
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+                    style={{ background: "linear-gradient(135deg,#FF2D78,#A855F7)" }}>✉️</div>
+                  <h3 className="font-black text-2xl text-deep">Message sent!</h3>
+                  <p className="text-slate-500 text-sm max-w-xs">Thanks for reaching out. We&apos;ll reply to your email within 24 hours.</p>
+                  <button onClick={() => setSent(false)}
+                    className="mt-2 text-sm font-semibold px-5 py-2 rounded-xl"
+                    style={{ color: "#FF2D78", background: "rgba(255,45,120,0.08)", border: "1px solid rgba(255,45,120,0.15)" }}>
+                    Send another
+                  </button>
+                </motion.div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-1.5">Full Name *</label>
+                      <input
+                        type="text" required placeholder="Sachin Kushwaha"
+                        value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
+                        style={{ background: "#F8FAFC", border: "1.5px solid rgba(255,45,120,0.15)", color: "#1A0A12" }}
+                        onFocus={e => (e.target.style.borderColor = "rgba(255,45,120,0.5)")}
+                        onBlur={e  => (e.target.style.borderColor = "rgba(255,45,120,0.15)")}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-1.5">Email Address *</label>
+                      <input
+                        type="email" required placeholder="you@example.com"
+                        value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
+                        style={{ background: "#F8FAFC", border: "1.5px solid rgba(255,45,120,0.15)", color: "#1A0A12" }}
+                        onFocus={e => (e.target.style.borderColor = "rgba(255,45,120,0.5)")}
+                        onBlur={e  => (e.target.style.borderColor = "rgba(255,45,120,0.15)")}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-1.5">Subject</label>
+                    <select
+                      value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all appearance-none cursor-pointer"
+                      style={{ background: "#F8FAFC", border: "1.5px solid rgba(255,45,120,0.15)", color: "#1A0A12" }}
+                      onFocus={e => (e.target.style.borderColor = "rgba(255,45,120,0.5)")}
+                      onBlur={e  => (e.target.style.borderColor = "rgba(255,45,120,0.15)")}
+                    >
+                      {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-1.5">Message *</label>
+                    <textarea
+                      required rows={5} placeholder="Tell us about your event, the number of guests, any questions…"
+                      value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all resize-none"
+                      style={{ background: "#F8FAFC", border: "1.5px solid rgba(255,45,120,0.15)", color: "#1A0A12" }}
+                      onFocus={e => (e.target.style.borderColor = "rgba(255,45,120,0.5)")}
+                      onBlur={e  => (e.target.style.borderColor = "rgba(255,45,120,0.15)")}
+                    />
+                  </div>
+
+                  {formError && (
+                    <p className="text-sm font-medium px-4 py-3 rounded-xl"
+                      style={{ color: "#FF2D78", background: "rgba(255,45,120,0.06)", border: "1px solid rgba(255,45,120,0.15)" }}>
+                      {formError}
+                    </p>
+                  )}
+
+                  <button type="submit" disabled={sending}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-opacity disabled:opacity-60"
+                    style={{ background: "linear-gradient(135deg,#FF2D78,#A855F7)", boxShadow: "0 6px 20px rgba(255,45,120,0.3)" }}>
+                    {sending ? (
+                      <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Sending…</>
+                    ) : (
+                      <><Send size={15} /> Send Message</>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </FadeIn>
         </div>
       </section>
 

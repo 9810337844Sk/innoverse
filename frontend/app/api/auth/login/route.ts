@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
     const key = attemptKey(req, normalizedEmail);
     const previous = loginAttempts.get(key);
     if (previous && previous.resetsAt > Date.now() && previous.count >= MAX_ATTEMPTS) {

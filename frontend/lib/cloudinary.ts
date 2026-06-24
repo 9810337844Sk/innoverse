@@ -41,9 +41,9 @@ export async function uploadToCloudinary(
         invalidate: options.overwrite ?? false,
         // Auto-quality + format for delivery
         transformation: [{ quality: "auto", fetch_format: "auto" }],
-        // Generate an eager thumbnail at 400×400
+        // Generate an eager thumbnail at 400×400 (async so upload returns faster)
         eager: [{ width: 400, height: 400, crop: "fill", gravity: "auto", quality: "auto", fetch_format: "auto" }],
-        eager_async: false,
+        eager_async: true,
       },
       (error, result) => {
         if (error || !result) return reject(error ?? new Error("Cloudinary upload failed"));

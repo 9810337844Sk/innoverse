@@ -1,18 +1,15 @@
 /**
  * POST /api/upload
- * Accepts multipart/form-data with:
- *   - eventId   : string  (Supabase event UUID)
- *   - eventCode : string  (used in Cloudinary folder name)
- *   - eventName : string  (human-readable, for fallback)
- *   - photos    : File[]  (one or more image files)
  *
- * Cloudinary folder structure (per-photographer isolation):
- *   photofly/photographers/<photographerId>/events/<eventCode>/
+ * Accepts multipart/form-data:
+ *   eventId   — Supabase event UUID
+ *   eventCode — used in Cloudinary folder path
+ *   eventName — human-readable fallback
+ *   photos    — one or more image files (keep batches ≤ 3 from the client)
  *
- * This ensures one photographer can NEVER access another photographer's
- * Cloudinary assets — even if they somehow obtain a public_id.
- *
- * Returns: { photos: SavedPhoto[], count: number }
+ * Uploads all files to Cloudinary IN PARALLEL, inserts rows into Supabase,
+ * and returns partial results — successfully uploaded photos are returned even
+ * if some files in the batch fail.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { deleteFromCloudinary, uploadToCloudinary } from "@/lib/cloudinary";
@@ -20,7 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/serverAuth";
 import type { DbEvent } from "@/lib/supabase";
 
-export const maxDuration = 120; // 2 min for large batches
+export const maxDuration = 60;
 
 type SavedPhoto = {
   _id: string;
@@ -30,13 +27,18 @@ type SavedPhoto = {
   cloudinaryPublicId: string;
 };
 
+type FailedPhoto = {
+  name: string;
+  error: string;
+};
+
 async function insertPhotoRow(input: {
   eventId: string;
   url: string;
   thumbnailUrl: string;
   name: string;
   cloudinaryPublicId: string;
-}) {
+}): Promise<{ id: string }> {
   const row = {
     event_id:             input.eventId,
     url:                  input.url,
@@ -46,40 +48,72 @@ async function insertPhotoRow(input: {
     saved_at:             new Date().toISOString(),
   };
 
-  const inserted = await supabase
+  const { data, error } = await supabase
     .from("photos")
     .insert(row)
     .select("id")
     .single();
 
-  if (!inserted.error) return inserted.data;
+  if (!error) return data as { id: string };
 
-  const message = inserted.error.message.toLowerCase();
-  if (!message.includes("cloudinary_public_id")) throw inserted.error;
+  // If the error is a duplicate cloudinary_public_id, skip gracefully
+  if (error.message.toLowerCase().includes("cloudinary_public_id")) {
+    const { data: existing } = await supabase
+      .from("photos")
+      .select("id")
+      .eq("event_id", input.eventId)
+      .eq("cloudinary_public_id", input.cloudinaryPublicId)
+      .single();
+    if (existing) return existing as { id: string };
+  }
 
-  const retry = await supabase
-    .from("photos")
-    .insert({
-      event_id:      row.event_id,
-      url:           row.url,
-      thumbnail_url: row.thumbnail_url,
-      name:          row.name,
-      saved_at:      row.saved_at,
-    })
-    .select("id")
-    .single();
+  throw error;
+}
 
-  if (retry.error) throw retry.error;
-  return retry.data;
+async function uploadSingleFile(
+  file: File,
+  index: number,
+  folder: string,
+  eventId: string,
+): Promise<SavedPhoto> {
+  const bytes    = await file.arrayBuffer();
+  const buffer   = Buffer.from(bytes);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const publicId = `${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}_${safeName.replace(/\.[^.]+$/, "")}`;
+
+  const { url, thumbnailUrl, publicId: fullPublicId } =
+    await uploadToCloudinary(buffer, publicId, folder);
+
+  try {
+    const row = await insertPhotoRow({
+      eventId,
+      url,
+      thumbnailUrl,
+      name: file.name,
+      cloudinaryPublicId: fullPublicId,
+    });
+
+    return {
+      _id:                row.id,
+      url,
+      thumbnailUrl,
+      name:               file.name,
+      cloudinaryPublicId: fullPublicId,
+    };
+  } catch (dbError) {
+    // Rollback Cloudinary asset so we don't leave orphans
+    await deleteFromCloudinary(fullPublicId).catch((e) =>
+      console.warn("[upload] Cloudinary rollback failed:", e)
+    );
+    throw dbError;
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // ── Auth check ──────────────────────────────────────────────────────────
+    // ── Auth ────────────────────────────────────────────────────────────────
     const user = getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (user.role !== "photographer" && user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -91,7 +125,16 @@ export async function POST(req: NextRequest) {
     const files     = formData.getAll("photos") as File[];
 
     if (!eventId || !files.length) {
-      return NextResponse.json({ error: "eventId and at least one photo are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "eventId and at least one photo are required" },
+        { status: 400 },
+      );
+    }
+
+    // Filter out non-file or empty entries
+    const validFiles = files.filter((f) => f instanceof File && f.size > 0);
+    if (!validFiles.length) {
+      return NextResponse.json({ error: "No valid image files received" }, { status: 400 });
     }
 
     // ── Ownership check ─────────────────────────────────────────────────────
@@ -104,87 +147,63 @@ export async function POST(req: NextRequest) {
     if (eventErr || !eventRow) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
-
     if (user.role !== "admin" && (eventRow as DbEvent).photographer_id !== user.id) {
-      return NextResponse.json(
-        { error: "Access denied — this event belongs to another photographer" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // ── Build per-photographer Cloudinary folder ────────────────────────────
-    // photofly/photographers/<photographerId>/events/<eventCode>/
+    // ── Cloudinary folder (per-photographer isolation) ──────────────────────
     const folderSlug = (eventCode ?? eventName ?? eventId)
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .toUpperCase();
     const folder = `photofly/photographers/${user.id}/events/${folderSlug}`;
 
-    // ── Upload each file ────────────────────────────────────────────────────
-    const saved: SavedPhoto[] = [];
+    // ── Upload all files in parallel, collect partial results ───────────────
+    const results = await Promise.allSettled(
+      validFiles.map((file, i) => uploadSingleFile(file, i, folder, eventId)),
+    );
 
-    for (const file of files) {
-      const bytes  = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+    const saved: SavedPhoto[]  = [];
+    const failed: FailedPhoto[] = [];
 
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const publicId = `${Date.now()}_${safeName.replace(/\.[^.]+$/, "")}`;
-
-      const { url, thumbnailUrl, publicId: fullPublicId } =
-        await uploadToCloudinary(buffer, publicId, folder);
-
-      let row: { id: string };
-      try {
-        row = await insertPhotoRow({
-          eventId,
-          url,
-          thumbnailUrl,
-          name: file.name,
-          cloudinaryPublicId: fullPublicId,
+    results.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        saved.push(result.value);
+      } else {
+        const reason = result.reason;
+        failed.push({
+          name:  validFiles[i].name,
+          error: reason instanceof Error ? reason.message : "Upload failed",
         });
-      } catch (error) {
-        await deleteFromCloudinary(fullPublicId).catch(e =>
-          console.warn("[upload] Cloudinary rollback failed:", e)
-        );
-        throw error;
+        console.error(`[upload] File "${validFiles[i].name}" failed:`, reason);
       }
+    });
 
-      saved.push({
-        _id:                row.id,
-        url,
-        thumbnailUrl,
-        name:               file.name,
-        cloudinaryPublicId: fullPublicId,
-      });
-    }
-
-    // ── Increment event photo_count ─────────────────────────────────────────
+    // ── Increment event photo_count for successfully saved photos ───────────
     if (saved.length > 0) {
-      await supabase.rpc("increment_photo_count", {
-        p_event_id: eventId,
-        p_amount:   saved.length,
-      }).then(({ error }) => {
-        if (error) {
-          return supabase
-            .from("events")
-            .select("photo_count")
-            .eq("id", eventId)
-            .single()
-            .then(({ data }) =>
-              supabase
-                .from("events")
-                .update({ photo_count: (data?.photo_count ?? 0) + saved.length })
-                .eq("id", eventId)
-            );
-        }
-      });
+      const { error: rpcErr } = await supabase
+        .rpc("increment_photo_count", { p_event_id: eventId, p_amount: saved.length });
+      if (rpcErr) {
+        const { data: ev } = await supabase
+          .from("events").select("photo_count").eq("id", eventId).single();
+        await supabase
+          .from("events")
+          .update({ photo_count: ((ev as { photo_count?: number } | null)?.photo_count ?? 0) + saved.length })
+          .eq("id", eventId);
+      }
     }
 
-    return NextResponse.json({ photos: saved, count: saved.length });
+    // Return 207 Multi-Status if there were partial failures so the client
+    // knows some files succeeded and some didn't.
+    const status = failed.length > 0 && saved.length === 0 ? 500
+                 : failed.length > 0                        ? 207
+                 : 200;
+
+    return NextResponse.json({ photos: saved, failed, count: saved.length }, { status });
   } catch (err) {
     console.error("[POST /api/upload]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Upload failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
