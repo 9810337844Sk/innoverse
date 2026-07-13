@@ -2,9 +2,15 @@
  * POST /api/photos/index/[eventId]
  *
  * Fetches all unindexed photos for the event from Supabase, builds
- * download URLs the AI service can reach (direct googleapis.com URLs
- * for Drive photos, plain Supabase/Cloudinary URLs for others), and
- * sends the job to ai-service /index.
+ * download URLs the AI service can reach (an absolute /api/drive/image
+ * proxy URL for Drive photos, plain Supabase/Cloudinary URLs for others),
+ * and sends the job to ai-service /index.
+ *
+ * Drive photos route through our own /api/drive/image proxy rather than a
+ * direct googleapis.com URL: the external AI service has no photographer
+ * session cookie to send, so the proxy's guest path (event's stored
+ * drive_refresh_token) is the only auth path that actually works here — and
+ * it avoids putting a raw Drive access token in a URL sent to a third party.
  *
  * The AI service downloads each photo, extracts face embeddings, and
  * POSTs results back to /api/photos/index-callback — which writes the
@@ -14,45 +20,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/serverAuth";
 import { supabase } from "@/lib/supabase";
 import type { DbEvent, DbPhoto } from "@/lib/supabase";
-import { getOAuthClient } from "@/lib/drive-auth";
 
 export const runtime  = "nodejs";
 export const maxDuration = 60;
-
-async function getDriveAccessToken(
-  req: NextRequest,
-  eventId: string,
-): Promise<string | null> {
-  // 1. Try the photographer's current session cookie
-  try {
-    const cookieVal = req.cookies.get("drive_tokens")?.value;
-    if (cookieVal) {
-      const tokens = JSON.parse(Buffer.from(cookieVal, "base64url").toString("utf8"));
-      const oauth2 = getOAuthClient();
-      oauth2.setCredentials(tokens);
-      const { credentials } = await oauth2.refreshAccessToken();
-      if (credentials.access_token) return credentials.access_token;
-    }
-  } catch { /* fall through to stored token */ }
-
-  // 2. Fall back to the refresh_token saved at Drive-import time
-  try {
-    const { data: event } = await supabase
-      .from("events")
-      .select("drive_refresh_token")
-      .eq("id", eventId)
-      .single();
-
-    if (event?.drive_refresh_token) {
-      const oauth2 = getOAuthClient();
-      oauth2.setCredentials({ refresh_token: event.drive_refresh_token });
-      const { credentials } = await oauth2.refreshAccessToken();
-      return credentials.access_token ?? null;
-    }
-  } catch { /* no token available */ }
-
-  return null;
-}
 
 export async function POST(
   req: NextRequest,
@@ -91,20 +61,18 @@ export async function POST(
     return NextResponse.json({ queued: 0, message: "All photos are already indexed" });
   }
 
-  // Get a Drive access token so the AI can download Drive photos directly
-  const accessToken = await getDriveAccessToken(req, eventId);
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
   const aiPhotos = (photos as DbPhoto[]).map((p) => {
     let downloadUrl = p.url;
-    if (p.cloudinary_public_id?.startsWith("drive:") && accessToken) {
+    if (p.cloudinary_public_id?.startsWith("drive:")) {
       const fileId = p.cloudinary_public_id.replace("drive:", "");
-      downloadUrl  = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${accessToken}`;
+      downloadUrl  = `${appUrl}/api/drive/image?fileId=${fileId}&eventId=${eventId}`;
     }
     return { id: p.id, url: downloadUrl, name: p.name };
   });
 
   const aiBase  = (process.env.AI_SERVICE_URL || "http://localhost:8000").replace(/\/$/, "");
-  const appUrl  = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
   const cbUrl   = `${appUrl}/api/photos/index-callback`;
   const secret  = process.env.INTERNAL_SECRET || "";
 

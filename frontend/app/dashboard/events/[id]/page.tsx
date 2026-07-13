@@ -254,6 +254,8 @@ export default function EventDetailPage() {
         driveFolderName: json.folderName || event.driveFolderName || "Google Drive Folder",
         driveSyncedAt: new Date().toISOString(), photoCount: updatedPhotos.length,
       };
+      setPhotos(updatedPhotos);
+      setEvent(updatedEvent);
       toast.success(`Drive imported: ${drivePhotos.length} photo${drivePhotos.length === 1 ? "" : "s"} saved`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Drive sync failed");

@@ -4,7 +4,8 @@ import { getUserFromRequest } from "@/lib/serverAuth";
 
 // GET /api/drive/callback?code=xxx — exchange code for tokens
 export async function GET(req: NextRequest) {
-  if (!getUserFromRequest(req)) {
+  const user = getUserFromRequest(req);
+  if (!user || !["photographer", "admin"].includes(user.role)) {
     return NextResponse.redirect(new URL("/auth/login?error=unauthorized", req.url));
   }
 
