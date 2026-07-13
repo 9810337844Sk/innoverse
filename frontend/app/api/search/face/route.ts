@@ -98,7 +98,8 @@ export async function POST(req: NextRequest) {
     const buf    = await selfie.arrayBuffer();
     aiForm.append("selfie",    new Blob([buf], { type: selfie.type }), "selfie.jpg");
     aiForm.append("event_id",  event.id);
-    aiForm.append("threshold", "0.6");
+    // No threshold override — the AI service searches at its tuned strict
+    // threshold and auto-relaxes once if nothing matches.
     aiForm.append("photos",    JSON.stringify(photosPayload));
 
     const controller = new AbortController();

@@ -109,10 +109,10 @@ async def process_index(event_id: str, photos: list, callback_url: str | None = 
 
 @app.post("/search")
 async def search_faces(
-    selfie:    UploadFile = File(...),
-    event_id:  str        = Form(...),
-    threshold: float      = Form(0.6),
-    photos:    str        = Form(...),
+    selfie:    UploadFile     = File(...),
+    event_id:  str            = Form(...),
+    threshold: float | None   = Form(None),
+    photos:    str            = Form(...),
 ):
     """
     Given a selfie and a JSON list of indexed photos (with embeddings), find matches.
@@ -125,6 +125,11 @@ async def search_faces(
             "facesCount": 2,
             "faces": [{"faceId": "face_0", "embedding": [...512 floats...], "bbox": {...}}]
         }]
+
+    threshold — optional manual override. When omitted, searches at the
+    tuned strict threshold (0.70 cosine similarity) and auto-relaxes to
+    0.60 once if nothing matches, same two-tier behaviour as the client-side
+    fallback search.
 
     Called by Next.js /api/search/face which fetches photos from Supabase first.
     """
@@ -157,9 +162,13 @@ async def search_faces(
             for p in photos_list
         ]
 
-        raw_matches = face_engine.search_faiss(
-            selfie_embedding, normalised, threshold, event_id=event_id
-        )
+        if threshold is not None:
+            raw_matches   = face_engine.search_faiss(selfie_embedding, normalised, threshold, event_id=event_id)
+            used_threshold = threshold
+        else:
+            raw_matches, used_threshold = face_engine.search_with_fallback(
+                selfie_embedding, normalised, event_id=event_id
+            )
 
         photo_index = {p["_id"]: p for p in normalised}
         matches = []
@@ -174,7 +183,7 @@ async def search_faces(
                     "similarity":   m["similarity"],
                 })
 
-        return {"matches": matches, "total": len(matches)}
+        return {"matches": matches, "total": len(matches), "thresholdUsed": used_threshold}
 
     except HTTPException:
         raise

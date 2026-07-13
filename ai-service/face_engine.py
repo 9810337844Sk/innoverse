@@ -22,6 +22,20 @@ class FaceEngine:
 
     DETECTOR_FALLBACKS = ["retinaface", "mtcnn", "opencv"]
 
+    # DeepFace's own empirically-tuned threshold for Facenet512+cosine is a
+    # distance of 0.30 (i.e. similarity 0.70) — see deepface.modules.verification.
+    # The 0.6 similarity used previously was looser than that, i.e. more
+    # false-positive prone. Try strict first, relax once if nothing matches.
+    STRICT_THRESHOLD  = 0.70
+    RELAXED_THRESHOLD = 0.60
+
+    # Quality gates for face detections. Applied both when indexing event
+    # photos and when embedding a selfie, so noisy detections (background
+    # strangers, blur, DeepFace's own "no face found" placeholder region)
+    # never make it into embeddings/index.
+    MIN_FACE_CONFIDENCE = 0.85
+    MIN_FACE_SIZE_PX    = 40
+
     def __init__(self, model_name: str = "Facenet512"):
         self.model_name = model_name
         self.embedding_dim = 512 if "512" in model_name else 128
@@ -48,22 +62,51 @@ class FaceEngine:
         norm = np.linalg.norm(v)
         return v / norm if norm > 0 else v
 
+    def _face_area(self, r: dict) -> float:
+        region = r.get("facial_area", {})
+        return region.get("w", 0) * region.get("h", 0)
+
+    def _quality_faces(self, results: list) -> list:
+        """
+        Drop detections too small or too low-confidence to embed reliably.
+
+        Also filters out DeepFace's synthetic "no face found" result (emitted
+        when enforce_detection=False and detection fails — confidence 0,
+        region spanning the whole image) so it never gets embedded as a face.
+        """
+        kept = []
+        for r in results:
+            region = r.get("facial_area", {})
+            w, h = region.get("w", 0), region.get("h", 0)
+            conf = r.get("face_confidence", 1.0)
+            if w >= self.MIN_FACE_SIZE_PX and h >= self.MIN_FACE_SIZE_PX and conf >= self.MIN_FACE_CONFIDENCE:
+                kept.append(r)
+        return kept
+
     def get_embedding(self, img_array: np.ndarray) -> np.ndarray | None:
-        """Extract best-face embedding from a selfie."""
+        """
+        Extract the primary-subject embedding from a selfie.
+
+        Picks the largest quality-passing face rather than DeepFace's raw
+        first result, so a selfie with other people in the background can't
+        get embedded as the wrong person.
+        """
         try:
             results = self._represent(img_array, enforce=True)
-            if results:
-                return self._normalize(results[0]["embedding"])
+            candidates = self._quality_faces(results) or results
+            if candidates:
+                best = max(candidates, key=self._face_area)
+                return self._normalize(best["embedding"])
         except Exception as e:
             print(f"Embedding error: {e}")
         return None
 
     def extract_faces(self, img_array: np.ndarray) -> list:
-        """Extract all faces from an event photo (handles groups)."""
+        """Extract all quality-passing faces from an event photo (handles groups)."""
         faces = []
         try:
             results = self._represent(img_array, enforce=False)
-            for i, r in enumerate(results):
+            for i, r in enumerate(self._quality_faces(results)):
                 emb = self._normalize(r["embedding"])
                 region = r.get("facial_area", {})
                 faces.append({
@@ -126,11 +169,28 @@ class FaceEngine:
 
     # ── Search ─────────────────────────────────────────────────────────────────
 
+    def search_with_fallback(
+        self,
+        query_embedding: np.ndarray,
+        photos: list,
+        event_id: str | None = None,
+    ) -> tuple[list, float]:
+        """
+        Search at the tuned strict threshold; auto-relax once if nothing
+        matches (mirrors the client-side face-api.js relax behaviour).
+        Returns (matches, threshold_used).
+        """
+        matches = self.search_faiss(query_embedding, photos, self.STRICT_THRESHOLD, event_id)
+        if matches:
+            return matches, self.STRICT_THRESHOLD
+        matches = self.search_faiss(query_embedding, photos, self.RELAXED_THRESHOLD, event_id)
+        return matches, self.RELAXED_THRESHOLD
+
     def search_faiss(
         self,
         query_embedding: np.ndarray,
         photos: list,
-        threshold: float = 0.6,
+        threshold: float = 0.70,
         event_id: str | None = None,
     ) -> list:
         """

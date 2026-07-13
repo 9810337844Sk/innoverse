@@ -8,6 +8,10 @@
  *  ④ Better thresholds         — 0.6 initial / 0.72 relaxed (same person in different lighting)
  *  ⑤ Error-resilient models    — modelsLoaded resets on failure so the next call retries
  *  ⑥ 6 parallel workers        — saturates network without overwhelming TF.js GPU queue
+ *
+ * v5 — match-accuracy fixes:
+ *  ⑦ Size-filtered descriptors — drop faces < 40px (background strangers/noise in group shots)
+ *  ⑧ Largest-face selfie pick  — selects primary subject by size, not raw detector confidence
  */
 
 import * as faceapi from "face-api.js";
@@ -126,6 +130,17 @@ function toCanvas(img: HTMLImageElement, maxPx = 640): HTMLCanvasElement {
 const SSD_OPTS  = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 });
 const TINY_OPTS = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.35 });
 
+// Faces smaller than this (in the resized 640px canvas) are too small to
+// produce a reliable 128-dim descriptor and mostly come from background
+// strangers in group shots — drop them rather than let them pollute matches.
+const MIN_FACE_PX = 40;
+
+function bySize<T extends { detection: { box: { width: number; height: number } } }>(
+  dets: T[],
+): T[] {
+  return dets.filter(d => d.detection.box.width >= MIN_FACE_PX && d.detection.box.height >= MIN_FACE_PX);
+}
+
 /**
  * Extract ALL face descriptors from a photo (for group shots).
  * SsdMobilenetv1 → TinyFaceDetector fallback.
@@ -143,12 +158,14 @@ async function getAllDescriptors(
       .withFaceDescriptors();
   }
 
-  return dets.map(d => d.descriptor);
+  return bySize(dets).map(d => d.descriptor);
 }
 
 /**
- * Extract the best (highest-confidence) face descriptor from a selfie.
- * Returns null if no face detected.
+ * Extract the primary-subject face descriptor from a selfie.
+ * Picks the largest quality-passing face rather than merely the
+ * highest-confidence detection, so a selfie with people in the background
+ * can't get matched under the wrong identity. Returns null if no face detected.
  */
 async function getBestDescriptor(
   input: HTMLCanvasElement,
@@ -164,9 +181,10 @@ async function getBestDescriptor(
   }
 
   if (!dets.length) return null;
-  return dets.reduce((a, b) =>
-    a.detection.score > b.detection.score ? a : b
-  ).descriptor;
+  const sized = bySize(dets);
+  const candidates = sized.length ? sized : dets;
+  const area = (d: (typeof dets)[number]) => d.detection.box.width * d.detection.box.height;
+  return candidates.reduce((a, b) => (area(a) > area(b) ? a : b)).descriptor;
 }
 
 // ── Concurrency pool ──────────────────────────────────────────────────────────
